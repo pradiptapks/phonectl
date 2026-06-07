@@ -14,6 +14,7 @@ setup(
         "rich>=13.0",
         "PyYAML>=6.0",
         "requests>=2.31",
+        "google-genai>=1.51.0",
     ],
     entry_points={
         "console_scripts": [

@@ -1,11 +1,15 @@
 # Diagnostic rules for phonectl diagnose.
-# Each rule has conditions (evaluated against device evidence) and actions.
+#
+# Rule types:
+#   conditions: ALL must match (AND logic)
+#   any_of:     ANY one triggers (OR logic)
+#
 # Conditions use: <, >, <=, >=, ==, != operators.
 # Available evidence keys: ram_total_mb, storage_free_gb, storage_total_gb,
 #   animation_scale, security_score, stalkerware_found, bloatware_count,
 #   warranty_expired, software_support_ended, gsi_compatible_count,
 #   services_count, sideloading_enabled, has_screen_lock, battery_level,
-#   device_age_years, security_fixable, total_packages
+#   device_age_years, security_fixable, total_packages, encryption, selinux
 
 rules:
   - id: stalkerware_detected
@@ -114,6 +118,18 @@ rules:
     description: "Battery at {battery_level}%. Charge to 50%+ before flashing or resetting."
     actions: []
 
+  - id: slow_phone_any
+    name: "Phone may be slow — performance bottleneck detected"
+    priority: medium
+    any_of:
+      - ram_total_mb < 2048
+      - services_count > 200
+      - bloatware_count > 10
+    description: "One or more performance bottlenecks detected."
+    actions:
+      - "phonectl tune --profile fast"
+      - "phonectl storage cleanup"
+
   - id: performance_default
     name: "Performance tuning not applied"
     priority: info
@@ -122,3 +138,36 @@ rules:
     description: "Default Android animations are active. Reducing them can make the phone feel faster."
     actions:
       - "phonectl tune --profile balanced"
+
+# ──────────────────────────────────────────────
+# Severity escalation — triggers when multiple
+# related rules fire together
+# ──────────────────────────────────────────────
+escalations:
+  - id: device_compromised
+    name: "DEVICE LIKELY COMPROMISED — multiple security indicators"
+    trigger_rules:
+      - stalkerware_detected
+      - no_screen_lock
+      - sideloading_on
+      - security_poor
+    min_matches: 2
+    escalate_to: critical
+    description: "Multiple security indicators fired together. This device may be under active surveillance or compromised."
+    actions:
+      - "phonectl audit --deep"
+      - "phonectl reset --factory"
+
+  - id: severely_degraded
+    name: "DEVICE SEVERELY DEGRADED — multiple performance issues"
+    trigger_rules:
+      - slow_phone_low_ram
+      - slow_phone_bloatware
+      - too_many_services
+      - slow_phone_any
+    min_matches: 3
+    escalate_to: high
+    description: "Multiple performance issues compounding. Consider a fresh GSI flash for best results."
+    actions:
+      - "phonectl storage cleanup --deep"
+      - "phonectl flash gsi"

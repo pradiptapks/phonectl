@@ -19,7 +19,30 @@ Complete command reference for all phonectl commands and options.
 
 ### `phonectl diagnose`
 
-Run smart diagnostics — analyzes device health by collecting evidence from all modules (info, audit, security, storage, tune) and evaluating diagnostic rules. Produces a prioritized action plan with specific `phonectl` commands to fix each issue.
+Run smart diagnostics — analyzes device health by collecting evidence from all modules (info, audit, security, storage, tune) and evaluating diagnostic rules (AND + OR logic). Includes healthy status overview, severity escalation for correlated findings, and a prioritized action plan.
+
+| Option | Description |
+|--------|-------------|
+| `--ai` | Include Gemini 3.1 AI analysis (requires `GEMINI_API_KEY` env var) |
+| `--fix` | Auto-run fix commands with per-action confirmation (y/n/q to quit) |
+
+### `phonectl ask "<question>"`
+
+AI-powered troubleshooting — send a question about your device to Gemini 3.1 Pro. Device context (non-PII only) is included automatically. Requires `GEMINI_API_KEY`.
+
+```bash
+phonectl ask "why is my phone slow?"
+phonectl ask "should I flash Android 16 GSI on this device?"
+phonectl ask "is my phone compromised?"
+```
+
+**Privacy:** Only manufacturer, model, codename, Android version, VNDK, kernel, RAM, storage, CPU ABI, and scores are sent. Never serial, IMEI, accounts, or personal data.
+
+**Setup:**
+```bash
+pip install google-genai>=1.51.0
+export GEMINI_API_KEY=your-api-key
+```
 
 ### `phonectl report`
 
@@ -241,13 +264,7 @@ Launch the interactive TUI (Terminal User Interface) with a menu-driven interfac
 
 ---
 
-## Future: AI-Powered Commands (Not Yet Implemented)
-
-These commands are planned for future releases via the AI plugin system (`phonectl/ai/`):
-
-### `phonectl ask "<question>"` (future)
-
-AI-powered troubleshooting. Sends device context to Ollama (local) or Claude (MCP) and returns analysis. Falls back to rule-based diagnostics if no AI provider is available.
+## Future: Additional AI Commands
 
 ### `phonectl compat` (future)
 

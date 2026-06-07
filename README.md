@@ -27,6 +27,7 @@ A Python CLI/TUI tool that automates Android phone lifecycle management — flas
 - **Factory Reset** — safe reset flows with double confirmation, FRP warnings
 - **Backup & Recovery** — boot partition backup/restore, emergency recovery from boot loops
 - **Vendor Plugins** — Motorola (full), Google Pixel and Samsung (stubs), extensible for others
+- **Gemini 3.1 AI** — AI-powered diagnostics (`diagnose --ai`) and troubleshooting (`ask`) via Gemini 3.1 Pro/Flash
 - **AI Plugin System** — extensible provider interface for Ollama, Claude/MCP, and community data (future)
 
 ## Installation
@@ -56,6 +57,9 @@ phonectl --version
 # Device info and diagnostics
 phonectl info                           # Show device details
 phonectl diagnose                       # Smart diagnostics + prioritized action plan
+phonectl diagnose --ai                  # AI-enhanced analysis via Gemini 3.1
+phonectl diagnose --fix                 # Auto-run fix commands with confirmation
+phonectl ask "why is my phone slow?"    # AI troubleshooting (Gemini 3.1 Pro)
 phonectl report                         # Comprehensive device health report
 phonectl check                          # Hardware compatibility + GSI recommendations
 phonectl audit                          # Security audit + warranty check
@@ -82,7 +86,7 @@ phonectl tui                            # Menu-driven TUI
 
 | Category | Commands |
 |----------|----------|
-| **Diagnostics** | `info`, `diagnose`, `report`, `check`, `recommend` |
+| **Diagnostics** | `info`, `diagnose`, `diagnose --ai`, `diagnose --fix`, `ask`, `report`, `check`, `recommend` |
 | **Security** | `audit`, `security`, `security --harden` |
 | **Performance** | `tune --profile`, `tune --compile` |
 | **Storage** | `storage show`, `storage cleanup`, `storage bloatware` |

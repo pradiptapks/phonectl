@@ -766,7 +766,9 @@ def firmware_regions(codename: str):
 # ═══════════════════════════════════════════════════════════════
 
 @cli.command()
-def diagnose():
+@click.option("--ai", is_flag=True, help="Include Gemini AI analysis (requires GEMINI_API_KEY)")
+@click.option("--fix", "do_fix", is_flag=True, help="Auto-run fix commands for found issues")
+def diagnose(ai: bool, do_fix: bool):
     """Smart diagnostics — analyze device health and generate action plan."""
     from phonectl.core.diagnose import DiagnosticEngine, display_diagnosis
 
@@ -783,7 +785,96 @@ def diagnose():
     console.print("\n[bold]Running diagnostics...[/]\n")
     engine = DiagnosticEngine()
     report = engine.run(adb, device_info)
+
+    # AI-enhanced analysis
+    if ai:
+        try:
+            from phonectl.ai.gemini import GeminiProvider
+            from phonectl.ai.base import DeviceContext
+            provider = GeminiProvider()
+            if provider.is_available():
+                console.print("[bold blue]Running Gemini AI analysis...[/]\n")
+                context = DeviceContext.from_device_info(
+                    device_info,
+                    security_score=report.evidence.get("security_score", 0),
+                    findings=[f"{f.priority}: {f.name}" for f in report.findings],
+                    recommendations=[a for f in report.findings for a in f.actions],
+                )
+                report.ai_analysis = provider.analyze(context)
+            else:
+                console.print("[yellow]Gemini not available. Set GEMINI_API_KEY environment variable.[/]")
+        except Exception as exc:
+            console.print(f"[yellow]AI analysis failed: {exc}[/]")
+
     display_diagnosis(report)
+
+    # Auto-fix mode
+    if do_fix and report.findings:
+        import subprocess
+        actions = report.unique_actions()
+        if not actions:
+            console.print("[dim]No auto-fixable actions found.[/]")
+            return
+
+        console.print(f"\n[bold]Auto-fix: {len(actions)} action(s) to apply[/]\n")
+        applied = set()
+        for action in actions:
+            if action in applied:
+                continue
+            response = console.input(f"  Apply [bold]{action}[/]? [y/n/q]: ")
+            if response.strip().lower() == "q":
+                console.print("[yellow]Fix stopped.[/]")
+                break
+            if response.strip().lower() != "y":
+                continue
+
+            console.print(f"  [dim]Running: {action}...[/]")
+            try:
+                parts = action.split()
+                subprocess.run(parts, timeout=60)
+                applied.add(action)
+                console.print(f"  [green]Done[/]")
+            except Exception as exc:
+                console.print(f"  [red]Failed: {exc}[/]")
+
+
+# ═══════════════════════════════════════════════════════════════
+# phonectl ask (AI troubleshooting)
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+@click.argument("question")
+def ask(question: str):
+    """AI-powered troubleshooting — ask a question about your device.
+
+    Requires GEMINI_API_KEY environment variable set.
+    Uses Gemini 3.1 Pro for deep reasoning.
+    Only non-PII device context is sent (no serial, IMEI, or accounts).
+    """
+    from phonectl.ai.gemini import GeminiProvider, PRO_MODEL
+    from phonectl.ai.base import DeviceContext
+
+    dm = _create_device_manager()
+    device_info = _detect_device(dm)
+    vendor = dm.resolve_vendor(device_info)
+
+    provider = GeminiProvider(model=PRO_MODEL)
+    if not provider.is_available():
+        console.print(
+            "[red]Gemini API not available.[/]\n"
+            "Set your API key: [bold]export GEMINI_API_KEY=your-key[/]\n"
+            "Install SDK: [bold]pip install google-genai>=1.51.0[/]"
+        )
+        raise SystemExit(1)
+
+    context = DeviceContext.from_device_info(device_info)
+
+    console.print(f"[bold]Device:[/] {device_info.manufacturer} {device_info.model} ({device_info.codename})")
+    console.print(f"[bold]Question:[/] {question}")
+    console.print(f"\n[bold blue]Asking Gemini 3.1 Pro...[/]\n")
+
+    answer = provider.troubleshoot(context, question)
+    console.print(Panel(answer, title="[bold]AI Response[/]", border_style="blue"))
 
 
 # ═══════════════════════════════════════════════════════════════
