@@ -337,34 +337,48 @@ class SecurityScanner:
 
         # 9. Known stalkerware
         found_stalkerware = scan_for_stalkerware(package_list)
+        if found_stalkerware:
+            stalker_detail = f"DETECTED ({len(found_stalkerware)} matches):\n"
+            for f in found_stalkerware:
+                stalker_detail += f"    - {f['name']}: {f['matched_package']} [{f.get('category', 'stalkerware')}]\n"
+        else:
+            stalker_detail = f"Clean — scanned {len(package_list)} packages"
         checks.append(AuditCheck(
             name="Known stalkerware/spyware",
             category="Stalkerware",
             passed=len(found_stalkerware) == 0,
             severity="critical" if found_stalkerware else "info",
-            detail=f"DETECTED: {', '.join(f['name'] for f in found_stalkerware)}" if found_stalkerware
-                   else f"Clean — scanned {len(package_list)} packages",
+            detail=stalker_detail.rstrip(),
         ))
 
         # 10. Device admin apps
         try:
             admin_output = self.adb.shell("dumpsys device_policy")
-            admin_apps = []
-            for line in admin_output.splitlines():
-                if "admin=" in line.lower() or "componentname" in line.lower():
-                    admin_apps.append(line.strip())
+            admin_packages = set()
+            import re
+            for match in re.finditer(r'ComponentInfo\{([^/]+)/', admin_output):
+                admin_packages.add(match.group(1))
+            admin_apps = list(admin_packages)
         except Exception:
             admin_apps = []
 
-        known_admins = ["com.google.android.gms", "com.android.managedprovisioning"]
+        known_admins = ["com.google.android.gms", "com.android.managedprovisioning",
+                        "com.android.providers.telephony", "com.android.shell",
+                        "com.google.android.apps.work.clouddpc", "com.android.settings",
+                        "com.google.android.devicelockcontroller"]
         suspicious_admins = [a for a in admin_apps if not any(k in a for k in known_admins)]
+        if suspicious_admins:
+            admin_detail = f"Suspicious admin apps ({len(suspicious_admins)}):\n"
+            for a in sorted(suspicious_admins):
+                admin_detail += f"    - {a}\n"
+        else:
+            admin_detail = f"OK ({len(admin_apps)} admin packages, all known)"
         checks.append(AuditCheck(
             name="Device admin apps",
             category="Stalkerware",
             passed=len(suspicious_admins) == 0,
             severity="warning" if suspicious_admins else "info",
-            detail=f"Suspicious admins: {len(suspicious_admins)}" if suspicious_admins
-                   else f"OK ({len(admin_apps)} admin entries, all known)",
+            detail=admin_detail.rstrip(),
         ))
 
         # 11. Accessibility services abuse
@@ -413,13 +427,18 @@ class SecurityScanner:
         except Exception:
             suspicious_apps = set()
 
+        if suspicious_apps:
+            perm_detail = f"{len(suspicious_apps)} third-party apps with camera+mic+location:\n"
+            for app in sorted(suspicious_apps):
+                perm_detail += f"    - {app}\n"
+        else:
+            perm_detail = "No third-party apps with excessive permissions"
         checks.append(AuditCheck(
             name="Dangerous permissions",
             category="Permissions",
             passed=len(suspicious_apps) == 0,
             severity="warning" if suspicious_apps else "info",
-            detail=f"{len(suspicious_apps)} third-party apps with camera+mic+location"
-                   if suspicious_apps else "No third-party apps with excessive permissions",
+            detail=perm_detail.rstrip(),
         ))
 
         # 13. Sideloading enabled
@@ -696,6 +715,20 @@ def display_audit_report(report: AuditReport) -> None:
         console.print(table)
         console.print()
 
+    # Findings — list all warnings and failures with details
+    failed_checks = [c for c in report.checks if not c.passed]
+    if failed_checks:
+        console.print(Panel.fit(
+            "[bold]Findings — Warnings and Failures[/]",
+            border_style="yellow",
+        ))
+        for c in failed_checks:
+            severity_tag = "[bold red]CRITICAL[/]" if c.severity == "critical" else "[yellow]WARNING[/]"
+            console.print(f"\n  {severity_tag} [{c.category}] {c.name}")
+            for line in c.detail.splitlines():
+                console.print(f"    {line}")
+        console.print()
+
     # Summary
     passed = report.passed_count
     total = report.total_count
@@ -707,6 +740,8 @@ def display_audit_report(report: AuditReport) -> None:
         f"  Checks:     {passed}/{total} passed",
         f"  Risk level: [{risk_style}]{report.risk_level}[/]",
     ]
+    if failed_checks:
+        summary_lines.append(f"  Findings:   {len(failed_checks)} issue(s) found — see details above")
     if report.root_checks_run:
         summary_lines.append("  Deep scan:  Completed (root checks included)")
     elif report.root_available:
