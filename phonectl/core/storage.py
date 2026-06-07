@@ -166,8 +166,8 @@ class StorageAnalyzer:
                 except Exception:
                     pass
 
-        # Delete temp files
-        temp_patterns = ["*.tmp", "*.temp", "*.log"]
+        # Delete temp files (*.log excluded — moved to deep tier)
+        temp_patterns = ["*.tmp", "*.temp"]
         for pattern in temp_patterns:
             if dry_run:
                 results["actions"].append(f"Would delete /sdcard/**/{pattern}")
@@ -206,8 +206,18 @@ class StorageAnalyzer:
         return results
 
     def cleanup_deep(self, dry_run: bool = False) -> dict:
-        """Tier 2+3: Deep cleanup — includes safe cleanup plus browser data and logs."""
+        """Tier 2+3: Deep cleanup — includes safe cleanup plus log files and logcat."""
         results = self.cleanup_safe(dry_run=dry_run)
+
+        # Delete log files (excluded from safe tier — could contain user-important data)
+        if dry_run:
+            results["actions"].append("Would delete /sdcard/**/*.log")
+        else:
+            try:
+                self.adb.shell("find /sdcard -name '*.log' -type f -delete 2>/dev/null")
+                results["actions"].append("Deleted /sdcard/**/*.log")
+            except Exception:
+                pass
 
         # Clear logcat buffer
         if dry_run:

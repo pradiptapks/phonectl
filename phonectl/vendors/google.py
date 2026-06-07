@@ -22,7 +22,32 @@ class GooglePixelPlugin(BaseVendorPlugin):
         return ["18d1"]
 
     def detect(self, info: DeviceInfo) -> bool:
-        return info.manufacturer.lower() in ("google",)
+        # Avoid false positives: devices running GSI report manufacturer as "Google"
+        # but their vendor fingerprint reveals the real OEM. Only match if the vendor
+        # fingerprint also belongs to Google (Pixel devices).
+        vendor_fp = info.extra.get("vendor_fingerprint", "")
+        if vendor_fp and "google/" not in vendor_fp.lower():
+            return False
+
+        if info.manufacturer.lower() not in ("google",):
+            return False
+
+        # Known Pixel codenames for extra confidence
+        pixel_codenames = (
+            "sailfish", "marlin", "walleye", "taimen", "blueline", "crosshatch",
+            "sargo", "bonito", "flame", "coral", "sunfish", "bramble", "redfin",
+            "barbet", "oriole", "raven", "bluejay", "panther", "cheetah",
+            "lynx", "tangorpro", "felix", "shiba", "husky", "akita",
+            "tokay", "caiman", "komodo", "comet",
+        )
+        if info.codename and info.codename.lower() in pixel_codenames:
+            return True
+
+        # If vendor fingerprint confirms Google, match even without codename
+        if "google/" in vendor_fp.lower():
+            return True
+
+        return False
 
     def get_boot_partitions(self) -> list[str]:
         return ["boot", "dtbo", "vbmeta"]

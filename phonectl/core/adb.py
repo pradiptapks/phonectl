@@ -2,10 +2,24 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+
+_SAFE_PATTERN = re.compile(r'^[a-zA-Z0-9._\-:/=+ @]+$')
+
+
+def _validate_safe_string(value: str, label: str = "input") -> None:
+    """Reject strings with shell metacharacters to prevent injection."""
+    if not value:
+        return
+    if not _SAFE_PATTERN.match(value):
+        raise ADBError(
+            f"Unsafe {label}: '{value}' contains shell metacharacters. "
+            "Only alphanumeric, dots, dashes, underscores, colons, slashes, and spaces are allowed."
+        )
 
 
 @dataclass
@@ -82,7 +96,20 @@ class ADBClient:
         return self._run("shell", command, timeout=timeout)
 
     def getprop(self, prop: str) -> str:
+        _validate_safe_string(prop, "property name")
         return self.shell(f"getprop {prop}")
+
+    def shell_safe(self, command: str, args: list[str] | None = None, timeout: int = 30) -> str:
+        """Run a shell command with sanitized arguments.
+
+        Use this instead of shell() when arguments come from untrusted sources
+        (user input, device-reported package names, etc.).
+        """
+        if args:
+            for arg in args:
+                _validate_safe_string(arg, "shell argument")
+            command = command.format(*args)
+        return self._run("shell", command, timeout=timeout)
 
     def get_props(self, props: list[str]) -> dict[str, str]:
         return {p: self.getprop(p) for p in props}

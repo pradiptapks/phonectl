@@ -146,7 +146,7 @@ class ResetManager:
             return False
 
         try:
-            self.adb.shell(f"pm clear {package}")
+            self.adb.shell_safe("pm clear {}", [package])
             console.print(f"[green]Data cleared for {package}.[/]")
             return True
         except Exception as exc:

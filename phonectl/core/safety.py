@@ -336,8 +336,9 @@ class SafetyGuard:
     def _api_to_android(api: int) -> str:
         """Map API level to Android version name."""
         api_map = {
-            28: "9", 29: "10", 30: "11", 31: "12", 32: "12L",
-            33: "13", 34: "14", 35: "15", 36: "16",
+            26: "8.0", 27: "8.1", 28: "9", 29: "10", 30: "11",
+            31: "12", 32: "12L", 33: "13", 34: "14", 35: "15",
+            36: "16", 37: "17",
         }
         return api_map.get(api, str(api))
 

@@ -184,6 +184,17 @@ class DeviceManager:
         except (ADBError, AttributeError):
             pass
 
+        # Codename fallback: try alternative properties if primary is empty
+        if not info.codename:
+            for fallback_prop in ("ro.product.device", "ro.product.board", "ro.build.product"):
+                try:
+                    val = adb.getprop(fallback_prop)
+                    if val:
+                        info.codename = val
+                        break
+                except ADBError:
+                    pass
+
         # Kernel version
         try:
             info.kernel_version = adb.shell("uname -r")
