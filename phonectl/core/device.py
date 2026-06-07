@@ -94,6 +94,7 @@ class DeviceManager:
                     info.state = DeviceState.ANDROID
                     self._adb = ADBClient(serial=dev.serial)
                     self._fill_from_adb(info)
+                    self._cache_profile(info)
                     return info
                 if dev.state == "recovery":
                     info.serial = dev.serial
@@ -123,12 +124,35 @@ class DeviceManager:
                 else:
                     info.state = DeviceState.FASTBOOT
                 self._fill_from_fastboot(info)
+                self._load_cached_profile(info)
                 return info
         except FastbootError:
             pass
 
         info.state = DeviceState.DISCONNECTED
         return info
+
+    def _cache_profile(self, info: DeviceInfo) -> None:
+        """Save device profile when detected via ADB."""
+        if not info.serial or not info.codename:
+            return
+        try:
+            from phonectl.core.state import StateManager
+            StateManager().save_profile(info)
+        except Exception:
+            pass
+
+    def _load_cached_profile(self, info: DeviceInfo) -> None:
+        """Load cached profile in fastbootd mode to fill missing properties."""
+        if not info.serial:
+            return
+        try:
+            from phonectl.core.state import StateManager
+            profile = StateManager().load_profile(info.serial)
+            if profile:
+                StateManager().apply_profile_to_info(profile, info)
+        except Exception:
+            pass
 
     def _fill_from_adb(self, info: DeviceInfo) -> None:
         adb = self._adb

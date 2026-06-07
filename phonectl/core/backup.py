@@ -53,8 +53,16 @@ class BackupManager:
         codename: str,
         firmware_dir: str | Path,
         info: DeviceInfo | None = None,
+        gsi_vbmeta: str | Path | None = None,
     ) -> Path:
-        """Backup boot images extracted from a firmware zip."""
+        """Backup boot images extracted from a firmware zip.
+
+        Args:
+            gsi_vbmeta: Optional path to GSI vbmeta.img. If provided, stored as
+                        vbmeta_gsi.img alongside the stock vbmeta (vbmeta_stock.img).
+                        This ensures recovery can select the correct vbmeta based
+                        on whether the device is running GSI or stock.
+        """
         firmware_path = Path(firmware_dir)
         if not firmware_path.exists():
             raise BackupError(f"Firmware directory not found: {firmware_path}")
@@ -65,7 +73,12 @@ class BackupManager:
         for img_name in BOOT_PARTITIONS:
             src = firmware_path / img_name
             if src.exists():
-                shutil.copy2(src, backup_path / img_name)
+                if img_name == "vbmeta.img":
+                    shutil.copy2(src, backup_path / "vbmeta_stock.img")
+                    shutil.copy2(src, backup_path / "vbmeta.img")
+                    copied.append("vbmeta_stock.img")
+                else:
+                    shutil.copy2(src, backup_path / img_name)
                 copied.append(img_name)
 
         if not copied:
@@ -74,11 +87,34 @@ class BackupManager:
                 f"Expected: {', '.join(BOOT_PARTITIONS)}"
             )
 
+        # Store GSI vbmeta if provided
+        has_gsi_vbmeta = False
+        if gsi_vbmeta:
+            gsi_vbmeta_path = Path(gsi_vbmeta)
+            if gsi_vbmeta_path.exists():
+                shutil.copy2(gsi_vbmeta_path, backup_path / "vbmeta_gsi.img")
+                copied.append("vbmeta_gsi.img")
+                has_gsi_vbmeta = True
+                console.print(f"[green]GSI vbmeta stored:[/] vbmeta_gsi.img")
+        else:
+            for candidate in [
+                Path.home() / ".phonectl" / "gsi_cache" / "vbmeta.img",
+                Path("/tmp/gsi_flash/vbmeta.img"),
+                Path("/tmp/phonectl_gsi/vbmeta.img"),
+            ]:
+                if candidate.exists():
+                    shutil.copy2(candidate, backup_path / "vbmeta_gsi.img")
+                    copied.append("vbmeta_gsi.img")
+                    has_gsi_vbmeta = True
+                    console.print(f"[green]GSI vbmeta auto-detected:[/] {candidate}")
+                    break
+
         metadata = {
             "codename": codename,
             "timestamp": datetime.now().isoformat(),
             "images": copied,
             "source": str(firmware_path),
+            "has_gsi_vbmeta": has_gsi_vbmeta,
         }
         if info:
             metadata["build_id"] = info.build_id

@@ -122,7 +122,7 @@ phonectl
 └── AI Plugins (future)    ← Ollama, Claude/MCP, community data providers
 ```
 
-Safety is built in at every level — VNDK compatibility matrix, kernel version gating, incompatible version blocking, protected app whitelist, input sanitization, USB monitoring, double confirmations, dry-run mode, and undo logs. Born from a real incident where a Moto G71 5G was bricked during a flash attempt.
+Safety is built in at every level — flash state persistence, smart vbmeta selection (GSI vs stock), device profile caching for fastbootd-mode operations, post-flash boot verification, VNDK compatibility matrix, kernel version gating, incompatible version blocking, protected app whitelist, input sanitization, USB monitoring, double confirmations, dry-run mode, and undo logs. Born from a real incident where a Moto G71 5G was bricked during a flash attempt.
 
 ## Documentation
 

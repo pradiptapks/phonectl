@@ -465,13 +465,16 @@ def flash_gsi(build_id: str | None, no_wipe: bool):
     system_img = str(gsi_dir / "system.img")
     vbmeta_img = str(gsi_dir / "vbmeta.img")
 
-    # Reboot to fastbootd
-    adb = dm.get_adb()
-    if info.state == DeviceState.ANDROID and adb:
-        console.print("[bold]Rebooting to fastbootd...[/]")
-        adb.reboot_fastboot()
-        import time
-        time.sleep(15)
+    # Reboot to fastbootd (skip if already in fastbootd)
+    if info.state == DeviceState.FASTBOOTD:
+        console.print("[dim]Already in fastbootd — skipping reboot.[/]")
+    elif info.state == DeviceState.ANDROID:
+        adb = dm.get_adb()
+        if adb:
+            console.print("[bold]Rebooting to fastbootd...[/]")
+            adb.reboot_fastboot()
+            import time
+            time.sleep(15)
 
     fb = FastbootClient()
     if not fb.is_connected():
@@ -495,7 +498,28 @@ def flash_gsi(build_id: str | None, no_wipe: bool):
         raise SystemExit(1)
 
     _execute_flash_steps(fb, steps)
+
+    # Save flash state
+    from phonectl.core.state import StateManager, FlashState
+    sm = StateManager()
+    sm.save_flash_state(FlashState(
+        serial=info.serial,
+        codename=info.codename,
+        system_type="gsi",
+        gsi_build_id=gsi.build_id,
+        vbmeta_type="gsi",
+        vbmeta_path=vbmeta_img,
+        system_path=system_img,
+        boot_source="",
+        slot=info.slot_suffix.replace("_", "") if info.slot_suffix else "a",
+    ))
+
     console.print("\n[bold green]Flash complete![/] Phone is rebooting.")
+
+    # Boot verification
+    from phonectl.core.verify import BootVerifier
+    verifier = BootVerifier()
+    verifier.verify(serial=info.serial, timeout=300)
 
 
 @flash.command("stock")
@@ -556,17 +580,24 @@ def update(build_id: str | None):
 @cli.command()
 @click.option("--backup-path", type=click.Path(exists=True), help="Backup directory with boot images")
 @click.option("--codename", help="Device codename (for auto-finding backup)")
-def recover(backup_path: str | None, codename: str | None):
-    """Emergency recovery — restore boot partitions from backup."""
-    bm = BackupManager()
+@click.option("--no-system", is_flag=True, help="Skip system flash (boot partitions only)")
+@click.option("--no-verify", is_flag=True, help="Skip post-flash boot verification")
+def recover(backup_path: str | None, codename: str | None, no_system: bool, no_verify: bool):
+    """Smart recovery — restore boot partitions with correct vbmeta selection."""
+    from phonectl.core.state import StateManager
 
+    bm = BackupManager()
+    sm = StateManager()
+
+    # Detect device and find backup
+    serial = None
     if not backup_path:
         if not codename:
-            console.print("[yellow]Trying to detect device...[/]")
             try:
                 dm = _create_device_manager()
                 info = dm.detect()
                 codename = info.codename
+                serial = info.serial
             except Exception:
                 pass
 
@@ -586,8 +617,31 @@ def recover(backup_path: str | None, codename: str | None):
         console.print(f"[red]No boot images found in {backup_path}[/]")
         raise SystemExit(1)
 
+    # Smart vbmeta selection based on flash state
+    state = sm.load_flash_state(serial) if serial else sm.get_latest_state()
+    vbmeta_type = "stock"
+    backup_dir = Path(backup_path)
+
+    if state and state.system_type == "gsi":
+        gsi_vbmeta = backup_dir / "vbmeta_gsi.img"
+        if gsi_vbmeta.exists():
+            images["vbmeta"] = gsi_vbmeta
+            vbmeta_type = "gsi"
+            console.print("[bold cyan]Smart recovery:[/] Using GSI vbmeta (device was running GSI)")
+        else:
+            console.print("[yellow]Warning: GSI vbmeta not in backup. Using stock vbmeta.[/]")
+            console.print("[yellow]If boot fails, the stock vbmeta may be incompatible with GSI system.[/]")
+    elif "vbmeta_stock" in images:
+        images["vbmeta"] = images.pop("vbmeta_stock")
+        console.print("[dim]Using stock vbmeta (no GSI state found)[/]")
+
+    # Remove internal backup names from flash list
+    images.pop("vbmeta_stock", None)
+    images.pop("vbmeta_gsi", None)
+
     console.print(Panel(
-        "\n".join(f"  {name}: {path}" for name, path in images.items()),
+        "\n".join(f"  {name}: {path}" for name, path in images.items())
+        + f"\n  vbmeta type: {vbmeta_type}",
         title="[bold]Recovery Images[/]",
         border_style="yellow",
     ))
@@ -609,17 +663,51 @@ def recover(backup_path: str | None, codename: str | None):
         if not fb.is_connected():
             raise SystemExit(1)
 
+    # Flash boot partitions
     for partition, img_path in images.items():
         console.print(f"[bold]Flashing {partition}...[/]")
         if partition == "vbmeta":
-            fb.flash_vbmeta(img_path)
+            if vbmeta_type == "gsi":
+                fb.flash_vbmeta(img_path)
+            else:
+                fb.flash_vbmeta(img_path, disable_verity=False, disable_verification=False)
         else:
             fb.flash(partition, img_path, sparse_limit="")
         console.print(f"  [green]OK[/]")
 
-    console.print("\n[green]Boot partitions restored.[/]")
-    console.print("To complete recovery, flash a GSI system:")
-    console.print("  phonectl flash gsi")
+    # Auto-flash system from GSI cache if available
+    if not no_system and state and state.system_type == "gsi":
+        from phonectl.firmware.gsi import GSI_CACHE_DIR
+        system_candidates = [
+            GSI_CACHE_DIR / state.gsi_build_id / "system.img",
+            Path(state.system_path) if state.system_path else None,
+        ]
+        system_img = None
+        for candidate in system_candidates:
+            if candidate and candidate.exists():
+                system_img = candidate
+                break
+
+        if system_img:
+            console.print(f"\n[bold]Auto-flashing GSI system:[/] {system_img.name}")
+            fb.flash("system", system_img, sparse_limit="128M", timeout=900)
+            console.print(f"  [green]OK[/]")
+            fb.wipe()
+            console.print(f"  [green]Data wiped[/]")
+        else:
+            console.print(
+                "\n[yellow]GSI system image not cached.[/] Run after reboot:\n"
+                "  [bold]phonectl flash gsi[/]"
+            )
+
+    # Reboot and verify
+    console.print("\n[bold]Rebooting...[/]")
+    fb.reboot()
+
+    if not no_verify:
+        from phonectl.core.verify import BootVerifier
+        verifier = BootVerifier()
+        verifier.verify(serial=serial, timeout=300)
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -179,6 +179,48 @@ phonectl flash gsi
   └── Verify boot (check Android version via ADB)
 ```
 
+### State Management (Prevents Boot Loop Incidents)
+
+```
+Flash State Persistence:
+  phonectl flash gsi → saves state.json
+    {serial, codename, system_type: "gsi", vbmeta_type: "gsi",
+     gsi_build_id, system_path, slot}
+
+Device Profile Caching:
+  phonectl info (Android mode) → saves profiles/<serial>.json
+    {manufacturer, codename, vndk, treble, cpu_abi, ram, ...}
+  phonectl flash gsi (fastbootd mode) → loads cached profile
+    Fills missing DeviceInfo fields from cache
+
+Smart Recovery:
+  phonectl recover
+    ├── Read state.json → system_type = "gsi"?
+    ├── YES → use vbmeta_gsi.img (4KB, --disable-verity)
+    ├── NO  → use vbmeta_stock.img (8KB, signed)
+    ├── Auto-flash system from gsi_cache/ if available
+    └── Boot verification (ADB polling for 5 minutes)
+
+Boot Verification:
+  After flash/recover → reboot → wait 5 min
+    ├── ADB device found → read Android version → SUCCESS
+    ├── Fastboot found (after 2 min) → BOOT FAILURE → suggest recovery
+    └── Timeout → print manual recovery steps
+```
+
+### Data Persistence (`~/.phonectl/`)
+
+| File/Directory | Purpose | Written By | Read By |
+|---------------|---------|-----------|---------|
+| `state.json` | What's currently flashed per device | `flash gsi` | `recover` |
+| `profiles/<serial>.json` | Cached device properties | `info`, `detect` (ADB) | `detect` (fastbootd) |
+| `flash_log.jsonl` | Append-only flash audit trail | `flash gsi`, `recover` | Audit |
+| `gsi_cache/<build_id>/` | Persistent GSI downloads | `flash gsi` | `recover`, `flash gsi` |
+| `backups/<codename>/` | Boot partition backups | `backup create` | `recover` |
+| `disabled_apps.json` | Bloatware undo log | `storage bloatware` | `storage bloatware enable` |
+| `tune_backup.json` | Pre-tune settings | `tune --profile` | `tune --reset` |
+| `security_backup.json` | Pre-hardening settings | `security --harden` | Manual restore |
+
 ### Security Audit Flow
 
 ```

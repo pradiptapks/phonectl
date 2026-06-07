@@ -222,12 +222,14 @@ Restore boot partitions from a backup directory. Device must be in fastbootd mod
 
 ### `phonectl recover`
 
-Emergency recovery — auto-find the latest backup for the device and restore boot partitions.
+Smart recovery — restore boot partitions with correct vbmeta selection. Reads flash state to determine whether to use GSI or stock vbmeta. Auto-flashes system from GSI cache if available. Includes post-flash boot verification.
 
 | Option | Description |
 |--------|-------------|
 | `--backup-path <path>` | Specific backup directory to restore from |
 | `--codename <name>` | Device codename (for auto-finding backup) |
+| `--no-system` | Skip system flash (boot partitions only) |
+| `--no-verify` | Skip post-flash boot verification |
 
 ---
 

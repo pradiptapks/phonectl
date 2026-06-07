@@ -88,11 +88,19 @@ def show_gsi_versions(config_path: str | Path | None = None) -> None:
     console.print(table)
 
 
+GSI_CACHE_DIR = Path.home() / ".phonectl" / "gsi_cache"
+
+
 def download_gsi(
     version: GSIVersion,
-    dest_dir: str | Path = "/tmp/phonectl_gsi",
+    dest_dir: str | Path | None = None,
 ) -> Path:
-    """Download a GSI zip and extract the system image."""
+    """Download a GSI zip and extract the system image.
+
+    Downloads to ~/.phonectl/gsi_cache/<build_id>/ for persistence across reboots.
+    """
+    if dest_dir is None:
+        dest_dir = GSI_CACHE_DIR / version.build_id
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
