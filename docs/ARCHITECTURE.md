@@ -40,44 +40,45 @@ The tool communicates with Android devices over USB via `adb` and `fastboot` —
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     User Interface Layer                         │
+│                     User Interface Layer                        │
 │  ┌──────────────┐  ┌──────────────┐                             │
-│  │   CLI (click) │  │  TUI (rich)  │                             │
-│  │   cli.py      │  │  tui.py      │                             │
+│  │   CLI (click)│  │  TUI (rich)  │                             │
+│  │   cli.py     │  │  tui.py      │                             │
 │  └──────┬───────┘  └──────┬───────┘                             │
 │         └────────┬────────┘                                     │
 ├──────────────────┼──────────────────────────────────────────────┤
-│                  │         Core Engine                           │
+│                  │         Core Engine                          │
 │  ┌───────────────▼──────────────┐                               │
 │  │       DeviceManager          │  device.py                    │
 │  │  detect → identify → route   │                               │
-│  └──┬────┬────┬────┬────┬──────┘                               │
-│     │    │    │    │    │                                        │
-│  ┌──▼──┐ │ ┌──▼──┐ │ ┌──▼──────────┐                           │
-│  │ ADB │ │ │ FB  │ │ │ VendorPlugin│  vendors/                 │
+│  └──┬────┬────┬────┬────┬───────┘                               │
+│     │    │    │    │    │                                       │
+│  ┌──▼──┐ │ ┌──▼──┐ │ ┌──▼──────────┐                            │
+│  │ ADB │ │ │ FB  │ │ │ VendorPlugin│  vendors/                  │
 │  │     │ │ │     │ │ │ (Motorola,  │                            │
-│  └─────┘ │ └─────┘ │ │  Pixel,    │                            │
-│          │         │ │  Samsung)  │                            │
-│  ┌───────▼──┐  ┌───▼──────┐ └────────────┘                     │
-│  │SafetyGrd │  │BackupMgr │                                    │
-│  │safety.py │  │backup.py │                                    │
-│  └──────────┘  └──────────┘                                    │
+│  └─────┘ │ └─────┘ │ │  Pixel,     │                            │
+│          │         │ │  Samsung)   │                            │
+│          │         │ └─────────────┘                            │
+│  ┌───────▼──┐  ┌───▼──────┐                                     │
+│  │SafetyGrd │  │BackupMgr │                                     │
+│  │safety.py │  │backup.py │                                     │
+│  └──────────┘  └──────────┘                                     │
 ├─────────────────────────────────────────────────────────────────┤
-│                    Feature Modules                               │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │  Audit   │ │  Tune    │ │ Storage  │ │ Security │           │
-│  │audit.py  │ │tune.py   │ │storage.py│ │security.py│          │
-│  │+stalker  │ │          │ │          │ │          │           │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
+│                    Feature Modules                              │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐           │
+│  │  Audit   │ │  Tune    │ │ Storage  │ │ Security  │           │
+│  │audit.py  │ │tune.py   │ │storage.py│ │security.py│           │
+│  │+stalker  │ │          │ │          │ │           │           │
+│  └──────────┘ └──────────┘ └──────────┘ └───────────┘           │
 ├─────────────────────────────────────────────────────────────────┤
-│                    Firmware Layer                                │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐                        │
-│  │  GSI     │ │ Sources  │ │Downloader│                        │
-│  │ gsi.py   │ │sources.py│ │downloader│                        │
-│  │+recommend│ │(lolinet) │ │.py       │                        │
-│  └──────────┘ └──────────┘ └──────────┘                        │
+│                    Firmware Layer                               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                         │
+│  │  GSI     │ │ Sources  │ │Downloader│                         │
+│  │ gsi.py   │ │sources.py│ │downloader│                         │
+│  │+recommend│ │(lolinet) │ │.py       │                         │
+│  └──────────┘ └──────────┘ └──────────┘                         │
 ├─────────────────────────────────────────────────────────────────┤
-│                    Configuration (YAML)                          │
+│                    Configuration (YAML)                         │
 │  vendors.yaml │ gsi_versions.yaml │ warranty.yaml               │
 │  stalkerware.yaml │ profiles.yaml │ bloatware.yaml              │
 │  protected_apps.yaml                                            │
