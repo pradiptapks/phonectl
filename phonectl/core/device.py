@@ -46,9 +46,17 @@ class DeviceInfo:
     cpu_abi: str = ""
     board_platform: str = ""
     hardware: str = ""
+    ram_total_mb: int = 0
+    storage_total_gb: float = 0.0
+    storage_free_gb: float = 0.0
+    opengl_version: str = ""
     # Runtime
     battery_level: str = ""
     uptime: str = ""
+    # Firmware
+    first_api_level: str = ""
+    vendor_security_patch: str = ""
+    vendor_build_id: str = ""
     # Extra vendor-specific properties
     extra: dict = field(default_factory=dict)
 
@@ -138,6 +146,10 @@ class DeviceManager:
             "ro.vndk.version": "vndk_version",
             "ro.bootimage.build.fingerprint": "bootloader_version",
             "gsm.version.baseband": "baseband_version",
+            "ro.product.first_api_level": "first_api_level",
+            "ro.vendor.build.security_patch": "vendor_security_patch",
+            "ro.vendor.build.id": "vendor_build_id",
+            "ro.opengles.version": "opengl_version",
         }
 
         for prop, attr in prop_map.items():
@@ -181,6 +193,39 @@ class DeviceManager:
         # Uptime
         try:
             info.uptime = adb.shell("uptime -p") or adb.shell("uptime")
+        except ADBError:
+            pass
+
+        # RAM
+        try:
+            meminfo = adb.shell("cat /proc/meminfo")
+            for line in meminfo.splitlines():
+                if line.startswith("MemTotal:"):
+                    kb = int(line.split()[1])
+                    info.ram_total_mb = kb // 1024
+                    break
+        except (ADBError, ValueError):
+            pass
+
+        # Storage
+        try:
+            df_output = adb.shell("df /data")
+            for line in df_output.splitlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 4:
+                    total_kb = int(parts[1])
+                    free_kb = int(parts[3])
+                    info.storage_total_gb = round(total_kb / 1048576, 1)
+                    info.storage_free_gb = round(free_kb / 1048576, 1)
+                    break
+        except (ADBError, ValueError, IndexError):
+            pass
+
+        # A/B slot count
+        try:
+            slot_count = adb.getprop("ro.boot.slot_count")
+            if slot_count:
+                info.slot_count = slot_count
         except ADBError:
             pass
 

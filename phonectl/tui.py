@@ -28,6 +28,14 @@ BANNER = r"""
 /_/
 """
 
+WARRANTY_NOTICE = (
+    "[bold yellow]WARNING:[/] This tool is for devices [bold]out of warranty[/] "
+    "and/or no longer receiving OEM updates.\n"
+    "Flashing or modifying partitions [bold red]will void your warranty[/] "
+    "and may brick your device.\n"
+    "[bold]Proceed at your own risk.[/]"
+)
+
 
 def _create_dm() -> DeviceManager:
     dm = DeviceManager()
@@ -248,6 +256,8 @@ def run_tui() -> None:
 
     console.print(Text(BANNER, style="bold cyan"))
     console.print("[bold]Universal Android Phone Lifecycle Manager[/]\n")
+    console.print(Panel(WARRANTY_NOTICE, border_style="yellow", title="[bold]Warranty Notice[/]"))
+    console.print()
 
     handlers = {
         "1": lambda: _handle_info(dm),

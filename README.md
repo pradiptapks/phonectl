@@ -2,15 +2,32 @@
 
 A Python CLI/TUI tool that automates Android phone lifecycle management — flash, backup, root, update, and recover — with a vendor-plugin architecture.
 
+> **WARNING: This tool is intended for devices that are OUT OF WARRANTY and/or no longer receiving official OEM software updates.** Unlocking the bootloader, flashing GSI images, or modifying boot partitions **will void your device warranty** and may permanently brick your device if used incorrectly. The authors are not responsible for any damage to your device. **Proceed entirely at your own risk.**
+
+## Who Is This For?
+
+- Devices that have **reached end of life** and no longer receive security patches from the manufacturer
+- Users who want to **extend the life** of an older phone by running a newer Android version via GSI
+- Developers and enthusiasts who want to **test Android builds** on real hardware
+- Anyone stuck with an **abandoned device** that the OEM has stopped supporting
+
+**This tool is NOT for:**
+- Devices still under active warranty
+- Users unfamiliar with bootloader unlocking and its consequences
+- Production/enterprise devices where data integrity is critical
+
 ## Features
 
 - **Device Detection** — Auto-detect connected Android devices and identify vendor/model
 - **GSI Flash** — Download and flash Generic System Images with safety checks
+- **Compatibility Check** — Scan device hardware (RAM, storage, GPU, kernel) and firmware (VNDK, API level, vendor patch) to determine which GSI versions are compatible
+- **Smart Recommendations** — Score and rank all available GSI versions (Android 11 through 17) against your device, showing RECOMMENDED / COMPATIBLE / INCOMPATIBLE / BROKEN verdicts with reasons
 - **Backup & Restore** — Back up boot partitions before any modification; restore on failure
 - **Security Updates** — Update GSI security patches without data loss
 - **Recovery** — Emergency recovery from boot loops using stock firmware
 - **Vendor Plugins** — Extensible architecture; Motorola included as reference, add Samsung/Pixel/others
 - **Safety First** — Pre-flash compatibility validation, USB watchdog, automatic rollback
+- **Incompatible Version Blocking** — Prevents flashing GSI versions that will brick your device (e.g., QPR2 on VNDK 30)
 
 ## Prerequisites
 
@@ -86,13 +103,22 @@ phonectl --help
 # Show connected device info
 phonectl info
 
+# Run compatibility check — shows hardware/firmware analysis + GSI recommendations
+phonectl check
+
+# Check compatibility against a specific GSI version
+phonectl check --version SQ3A.220705.003.A1
+
+# Get ranked GSI recommendations for your device
+phonectl recommend
+
 # Backup boot partitions before any changes
 phonectl backup create --from-dir /path/to/firmware/
 
 # List existing backups
 phonectl backup list
 
-# Flash Android 16 GSI (auto-selects compatible version)
+# Flash GSI (auto-selects best compatible version based on device hardware)
 phonectl flash gsi
 
 # Flash a specific GSI version
@@ -104,7 +130,7 @@ phonectl update
 # Recover a bricked phone from backup
 phonectl recover --codename corfur
 
-# List available GSI versions
+# List available GSI versions (Android 11 through 17)
 phonectl firmware list
 
 # Check available firmware regions for a device
@@ -118,11 +144,14 @@ phonectl tui
 
 | Command | Description |
 |---------|-------------|
-| `phonectl info` | Show connected device info (model, Android version, VNDK, partitions) |
+| `phonectl info` | Show connected device info (model, Android, VNDK, RAM, storage, kernel, GPU) |
+| `phonectl check` | Run 14 hardware/firmware compatibility checks + show GSI recommendations |
+| `phonectl check --version <id>` | Detailed compatibility report for a specific GSI version |
+| `phonectl recommend` | Score and rank all GSI versions (Android 11-17) against your device |
 | `phonectl backup create` | Create a backup of boot partition images |
 | `phonectl backup list` | List all saved backups |
 | `phonectl backup restore <path>` | Restore boot partitions from a backup |
-| `phonectl flash gsi` | Download and flash a GSI image |
+| `phonectl flash gsi` | Download and flash a GSI (auto-selects best compatible version) |
 | `phonectl flash stock` | Find stock firmware download for the device |
 | `phonectl update` | Update GSI security patch without data wipe |
 | `phonectl recover` | Emergency recovery from boot loop using backups |
@@ -157,12 +186,50 @@ phonectl
 
 ### Flash Workflow
 
-1. **Detect** device via ADB → identify vendor, model, VNDK version
-2. **Safety check** → validate bootloader unlocked, VNDK compatibility, backup exists
-3. **Download** GSI → with progress bar and SHA-256 verification
-4. **Reboot** to fastbootd → enter userspace fastboot mode
-5. **Flash** → vbmeta (disable verification) → system image (128MB chunks) → wipe → reboot
-6. **Verify** → confirm Android version and security patch after boot
+1. **Detect** device via ADB → identify vendor, model, VNDK, RAM, kernel, GPU
+2. **Recommend** → score all GSI versions against hardware/firmware, pick the best
+3. **Safety check (14 checks)** → bootloader, VNDK, Treble, partitions, RAM, storage, battery, OpenGL, kernel, API level, vendor patch, backup
+4. **Block incompatible** → refuse to flash versions that will brick the device
+5. **Download** GSI → with progress bar and SHA-256 verification
+6. **Reboot** to fastbootd → enter userspace fastboot mode
+7. **Flash** → vbmeta (disable verification) → system image (128MB chunks) → wipe → reboot
+8. **Verify** → confirm Android version and security patch after boot
+
+### Compatibility Checks (14 Total)
+
+| # | Check | What It Validates |
+|---|-------|-------------------|
+| 1 | Bootloader unlocked | Cannot flash if locked |
+| 2 | VNDK compatibility | VNDK version vs GSI build prefix matrix |
+| 3 | Project Treble | GSI requires Treble support |
+| 4 | Dynamic partitions | Determines flash method (legacy vs super) |
+| 5 | Architecture | Must be arm64 for ARM64 GSI |
+| 6 | A/B partitions | Slot count and active slot |
+| 7 | RAM | Minimum for target Android version |
+| 8 | Storage | Total capacity and free space |
+| 9 | Battery | Minimum 50% to prevent power-off mid-flash |
+| 10 | OpenGL ES | Minimum version for target Android |
+| 11 | Kernel version | 4.4+ for Android 11-12, 4.19+ for Android 13+ |
+| 12 | Android/firmware version | First API level, vendor build, target GSI |
+| 13 | Vendor security patch | Age warning if vendor support ended (3+ years) |
+| 14 | Boot partition backup | Whether a backup exists before flashing |
+
+### Smart Recommendations
+
+The recommendation engine scores each GSI version (0-100) based on:
+
+| Factor | Impact |
+|--------|--------|
+| VNDK compatibility | Critical — score 0 if incompatible |
+| Kernel version | Critical — blocks Android 13+ on kernel < 4.19 |
+| Treble support | Critical — blocks non-Treble devices |
+| Broken status in config | Critical — score 0 for known-broken versions |
+| RAM | +10 (4GB+), +5 (2GB+), -10 (< 2GB) |
+| Stable vs beta | +10 stable, -10 beta |
+| Security patch recency | +10 recent, +5 moderate, 0 old |
+| Download URL available | +5 available, -15 missing |
+
+Verdicts: **RECOMMENDED** (70+), **COMPATIBLE** (40-69), **INCOMPATIBLE** (0), **BROKEN** (known failures)
 
 ### Safety Features (Lessons from Real Failures)
 
@@ -171,10 +238,12 @@ This tool was born from a real incident where a Moto G71 5G was bricked during a
 | Safety Check | What It Prevents |
 |-------------|-----------------|
 | VNDK compatibility validation | Flashing QPR2+ GSI on VNDK 30 devices (causes boot loop) |
+| Incompatible version blocking | Trying to flash a GSI that the device hardware can't run |
 | Boot image origin check | Flashing boot.img from a different ROM (kernel mismatch) |
 | Pre-flash backup enforcement | Losing the original boot.img with no way to recover |
 | USB connection monitoring | Cable disconnect during flash (partial write = brick) |
 | Destructive operation confirmation | Accidental data wipe |
+| Kernel version gate | Prevents flashing Android 13+ on kernel 4.4 (won't boot) |
 
 ## Project Structure
 

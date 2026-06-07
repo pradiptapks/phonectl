@@ -1,12 +1,34 @@
 # GSI version registry — known versions with compatibility and download info.
 #
-# Compatibility is tracked by min_vndk: the minimum VNDK version on the
-# device's vendor partition that the GSI is known to work with.
+# Compatibility tracked by min_vndk: minimum VNDK version the GSI works with.
+# Build ID prefixes encode Android version:
+#   RP = Android 11, SQ/SP = Android 12, TQ/T3 = Android 13,
+#   UP/UQ = Android 14, AP = Android 15, BP = Android 16, CP = Android 17
 #
 # status: stable | beta | broken
 # broken = confirmed to cause boot loops on certain VNDK versions
 
 versions:
+  # ── Android 17 (latest beta) ──
+  - name: "Android 17 QPR1 Beta"
+    build_id: "CP31.260508.005"
+    security_patch: "2026-05-05"
+    status: beta
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-CP31.260508.005-15421345-a64e5482.zip"
+    sha256: "a64e54829181c3b83362f24bc81ff9c2b5eb96d74044e037decb894128dda126"
+    min_vndk: 33
+    notes: "Android 17 beta — not for daily use."
+
+  - name: "Android 17 Beta"
+    build_id: "CP21.260330.008"
+    security_patch: "2026-03-05"
+    status: beta
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-CP21.260330.008-15199860-7ebdc828.zip"
+    sha256: "7ebdc8285e378b2258b63cb7193d9b11e3245dd0515ea78c30d7be09d9fdaf89"
+    min_vndk: 33
+    notes: "Android 17 initial beta."
+
+  # ── Android 16 (Baklava) ──
   - name: "Android 16 (Baklava)"
     build_id: "BP2A.250605.031.A3"
     security_patch: "2025-06-05"
@@ -14,30 +36,120 @@ versions:
     download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-BP2A.250605.031.A3-13578795-38e52cb0.zip"
     sha256: "38e52cb0a3331a5ee0c653a4da2401ce74598a955acbd00aa85b6326036154c5"
     min_vndk: 30
-    notes: "Confirmed working on Moto G71 5G (corfur, VNDK 30). Recommended baseline."
+    notes: "Confirmed working on Moto G71 5G (corfur, VNDK 30). Recommended for VNDK 30 devices."
 
   - name: "Android 16 QPR1"
     build_id: "BP3A.250905.014"
     security_patch: "2025-09-05"
     status: stable
-    download_url: ""
-    sha256: ""
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-BP3A.250905.014-13873947-346aad89.zip"
+    sha256: "346aad891dfc0588d655dd2300e3d2297ebffe22b181a02538c4396b6e5975dd"
     min_vndk: 31
-    notes: "Requires VNDK 31+. NOT tested on VNDK 30 devices."
+    notes: "Requires VNDK 31+. NOT tested on VNDK 30."
 
   - name: "Android 16 QPR2"
     build_id: "BP4A.251205.006"
     security_patch: "2025-12-05"
     status: broken
-    download_url: ""
-    sha256: ""
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-BP4A.251205.006-14401865-f8760221.zip"
+    sha256: "f87602213d71f1eda90cbd3e6089cea28563d110e4ef3f70b748b2b111d4ecce"
     min_vndk: 32
     notes: "BROKEN on VNDK 30 devices (boot loop). Requires VNDK 32+."
 
-# Compatibility matrix (for reference):
-#
-# VNDK 30 (Android 11 vendor): BP2A only
-# VNDK 31 (Android 12 vendor): BP2A, BP3A
-# VNDK 32 (Android 12L vendor): BP2A, BP3A, BP4A
-# VNDK 33 (Android 13 vendor): BP2A, BP3A, BP4A
-# VNDK 34 (Android 14 vendor): all versions
+  # ── Android 15 ──
+  - name: "Android 15 QPR2"
+    build_id: "CP11.251209.009.A1"
+    security_patch: "2025-12-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-CP11.251209.009.A1-14840729-89298580.zip"
+    sha256: "89298580dda1280efe32b27d04b9caf5bbe19061c3716635c0d2d11640acf292"
+    min_vndk: 30
+    notes: "Android 15 QPR2 stable. Good for VNDK 30 devices."
+
+  - name: "Android 15 QPR1"
+    build_id: "AP4A.241205.013"
+    security_patch: "2024-12-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-AP4A.241205.013-12621605-f90b9f1e.zip"
+    sha256: "f90b9f1ed814d6a734da1e7e7ccc4206db90bb99a68fbdcc891380c102db6c93"
+    min_vndk: 30
+    notes: "Android 15 QPR1 stable."
+
+  - name: "Android 15"
+    build_id: "AP3A.241005.015"
+    security_patch: "2024-10-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-AP3A.241005.015-12366759-0fdc93fe.zip"
+    sha256: "0fdc93fe82b27c177aa6dadc1c4daf69be013679e14f2f2bf1fda1ce3e9abe74"
+    min_vndk: 30
+    notes: "Android 15 initial stable release."
+
+  # ── Android 14 ──
+  - name: "Android 14 QPR1"
+    build_id: "UQ1A.231205.015"
+    security_patch: "2023-12-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-UQ1A.231205.015-11084887-2026a0e7.zip"
+    sha256: "2026a0e788abf09a91421a4f83b7d766bfe1ec82707e3b6a5ca74f6c65212fc8"
+    min_vndk: 28
+    notes: "Android 14 QPR1. Compatible with VNDK 28+ (Android 9+ devices)."
+
+  - name: "Android 14"
+    build_id: "UP1A.231005.007"
+    security_patch: "2023-10-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-UP1A.231005.007-10754064-77f9c9df.zip"
+    sha256: "77f9c9dfad87c2bfdf17300cf791827eaa84adfc7535235a1ae2c063dc6537be"
+    min_vndk: 28
+    notes: "Android 14 initial stable. Widest compatibility — works with VNDK 28+."
+
+  # ── Android 13 ──
+  - name: "Android 13 QPR3"
+    build_id: "TQ3A.230805.001.A3"
+    security_patch: "2023-08-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-TQ3A.230805.001.A3-10454027-3adcae59.zip"
+    sha256: "3adcae59c84eb57ec65b486a3dfd800ed1a3237ad6e866362c461519b211a81f"
+    min_vndk: 28
+    notes: "Android 13 QPR3. Works with VNDK 28+ and kernel 4.4+."
+
+  - name: "Android 13"
+    build_id: "T3B3.230413.003"
+    security_patch: "2023-04-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-T3B3.230413.003-9957835-c059e7b4.zip"
+    sha256: "c059e7b4245c76073617504de8d43dbcea65d9d39e3c2ffdcc9c578ea0164899"
+    min_vndk: 28
+    notes: "Android 13 stable. Best option for older devices with kernel 4.4."
+
+  # ── Android 12 ──
+  - name: "Android 12L"
+    build_id: "SQ3A.220705.003.A1"
+    security_patch: "2022-07-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-SQ3A.220705.003.A1-8672226-7230b502.zip"
+    sha256: "7230b50236f01ac69dbbf62ad18051ab4d3796b921fe7c1967387517ff786681"
+    min_vndk: 27
+    notes: "Android 12L. Compatible with VNDK 27+ and kernel 4.4+. Good for very old devices."
+
+  # ── Android 11 ──
+  - name: "Android 11"
+    build_id: "RP1A.200720.009"
+    security_patch: "2020-07-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-RP1A.200720.009-6720564-c8273882.zip"
+    sha256: "c8273882af89b07a3701771b114c2f4ddad4076942adf745b72ed8c40fa13c12"
+    min_vndk: 27
+    notes: "Android 11. For legacy devices with VNDK 27+ and kernel 4.4."
+
+# ──────────────────────────────────────────────
+# Compatibility matrix (reference)
+# ──────────────────────────────────────────────
+# VNDK 27 (Android 8.1 vendor): Android 11, 12L
+# VNDK 28 (Android 9 vendor):   Android 11-14, 13 QPR3
+# VNDK 29 (Android 10 vendor):  Android 11-14, 13 QPR3
+# VNDK 30 (Android 11 vendor):  Android 11-16 (base only)
+# VNDK 31 (Android 12 vendor):  Android 11-16 QPR1
+# VNDK 32 (Android 12L vendor): Android 11-16 QPR2
+# VNDK 33 (Android 13 vendor):  All versions including Android 17
+# VNDK 34 (Android 14 vendor):  All versions

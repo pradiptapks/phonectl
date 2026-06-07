@@ -74,10 +74,26 @@ def _show_device_panel(info: DeviceInfo, vendor_name: str = "") -> None:
     table.add_row("Bootloader", "Unlocked" if info.is_unlocked else "Locked")
     table.add_row("Treble", "Yes" if info.treble_enabled else "No")
     table.add_row("Dynamic Partitions", "Yes" if info.dynamic_partitions else "No")
+    if info.slot_count:
+        table.add_row("A/B Slots", info.slot_count)
     if info.cpu_abi:
         table.add_row("CPU ABI", info.cpu_abi)
     if info.board_platform:
         table.add_row("Platform", info.board_platform)
+    if info.ram_total_mb:
+        table.add_row("RAM", f"{info.ram_total_mb} MB")
+    if info.storage_total_gb:
+        table.add_row("Storage", f"{info.storage_total_gb} GB total, {info.storage_free_gb} GB free")
+    if info.opengl_version:
+        try:
+            gl_int = int(info.opengl_version)
+            table.add_row("OpenGL ES", f"{(gl_int >> 16) & 0xFFFF}.{gl_int & 0xFFFF}")
+        except ValueError:
+            table.add_row("OpenGL ES", info.opengl_version)
+    if info.first_api_level:
+        table.add_row("First API Level", info.first_api_level)
+    if info.vendor_security_patch:
+        table.add_row("Vendor Patch", info.vendor_security_patch)
     if info.battery_level:
         table.add_row("Battery", f"{info.battery_level}%")
     if info.uptime:
@@ -90,10 +106,27 @@ def _show_device_panel(info: DeviceInfo, vendor_name: str = "") -> None:
 # CLI Group
 # ═══════════════════════════════════════════════════════════════
 
+WARRANTY_NOTICE = (
+    "[bold yellow]WARNING:[/] This tool is intended for devices that are "
+    "[bold]out of warranty[/] and/or no longer receiving official OEM updates. "
+    "Flashing GSI or modifying boot partitions [bold red]will void your warranty[/] "
+    "and may brick your device if used incorrectly. "
+    "[bold]Proceed at your own risk.[/]"
+)
+
+
 @click.group()
 @click.version_option(package_name="phonectl")
 def cli():
-    """phonectl — Universal Android Phone Lifecycle Manager."""
+    """phonectl — Universal Android Phone Lifecycle Manager.
+
+    \b
+    WARNING: This tool is intended for devices that are OUT OF WARRANTY
+    and/or no longer receiving official OEM updates. Flashing GSI or
+    modifying boot partitions WILL VOID YOUR WARRANTY and may brick
+    your device if used incorrectly. Proceed at your own risk.
+    """
+    console.print(f"\n{WARRANTY_NOTICE}\n", highlight=False)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -112,6 +145,107 @@ def info():
         quirks = vendor.get_usb_quirks()
         if quirks.get("description"):
             console.print(f"\n[dim]Vendor note: {quirks['description']}[/]")
+
+
+# ═══════════════════════════════════════════════════════════════
+# phonectl check
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+@click.option("--version", "build_id", default=None,
+              help="GSI build ID to check compatibility against (omit to check all)")
+def check(build_id: str | None):
+    """Run hardware/firmware compatibility checks and show GSI recommendations."""
+    from phonectl.firmware.gsi import show_recommendations, evaluate_all_versions
+
+    dm = _create_device_manager()
+    device_info = _detect_device(dm)
+    vendor = dm.resolve_vendor(device_info)
+
+    _show_device_panel(device_info, vendor.name if vendor else "Unknown")
+
+    # If a specific version is given, run detailed checks against it
+    if build_id:
+        guard = SafetyGuard()
+        report = guard.pre_flash_check(device_info, build_id)
+
+        console.print(f"\n[bold]Compatibility Report for GSI {build_id}:[/]\n")
+        console.print(report.summary())
+
+        passed = sum(1 for c in report.checks if c["passed"])
+        total = len(report.checks)
+
+        if report.passed:
+            console.print(f"\n[bold green]All {total} checks passed.[/] Device is ready for GSI flash.")
+        else:
+            failed = total - passed
+            console.print(f"\n[bold yellow]{passed}/{total} checks passed, {failed} failed.[/]")
+            console.print("[yellow]Fix the failed checks before flashing, or proceed at your own risk.[/]")
+
+        console.print()
+
+    # Always show the full recommendation table
+    console.print("[bold]GSI Version Recommendations Based on Your Hardware/Firmware:[/]\n")
+    results = show_recommendations(device_info)
+
+    recommended = [r for r in results if r.verdict == "recommended"]
+    if recommended:
+        best = recommended[0]
+        console.print(
+            f"\nTo run detailed checks for the recommended version:\n"
+            f"  [bold]phonectl check --version {best.version.build_id}[/]\n"
+            f"To flash it:\n"
+            f"  [bold]phonectl flash gsi --version {best.version.build_id}[/]"
+        )
+    else:
+        compatible = [r for r in results if r.verdict == "compatible"]
+        if compatible:
+            console.print(
+                "\n[yellow]No strongly recommended version. "
+                "Check compatible options above.[/]"
+            )
+        else:
+            console.print(
+                "\n[red]No compatible GSI found for this device.[/]\n"
+                "The hardware or firmware does not meet minimum requirements."
+            )
+
+
+# ═══════════════════════════════════════════════════════════════
+# phonectl recommend
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+def recommend():
+    """Scan device hardware/firmware and recommend compatible GSI versions."""
+    from phonectl.firmware.gsi import show_recommendations
+
+    dm = _create_device_manager()
+    device_info = _detect_device(dm)
+    vendor = dm.resolve_vendor(device_info)
+
+    _show_device_panel(device_info, vendor.name if vendor else "Unknown")
+    console.print()
+
+    results = show_recommendations(device_info)
+
+    recommended = [r for r in results if r.verdict == "recommended"]
+    if recommended:
+        best = recommended[0]
+        console.print(
+            f"\nTo flash the recommended version:\n"
+            f"  [bold]phonectl flash gsi --version {best.version.build_id}[/]"
+        )
+    else:
+        compatible = [r for r in results if r.verdict == "compatible"]
+        if compatible:
+            console.print(
+                "\n[yellow]No strongly recommended version, but compatible options exist.[/]"
+            )
+        else:
+            console.print(
+                "\n[red]No compatible GSI versions found for this device.[/]"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -209,21 +343,60 @@ def flash_gsi(build_id: str | None, no_wipe: bool):
 
     _show_device_panel(info, vendor.name if vendor else "Unknown")
 
-    # Find GSI version
+    # Find GSI version — use recommendation engine
+    from phonectl.firmware.gsi import evaluate_all_versions
+
     versions = load_gsi_versions()
     gsi = None
+
     if build_id:
         gsi = next((v for v in versions if v.build_id == build_id), None)
         if not gsi:
             console.print(f"[red]Unknown GSI build ID: {build_id}[/]")
             show_gsi_versions()
             raise SystemExit(1)
+
+        # Check if the selected version is compatible
+        recommendations = evaluate_all_versions(info)
+        rec = next((r for r in recommendations if r.version.build_id == build_id), None)
+        if rec and rec.verdict in ("incompatible", "broken"):
+            console.print(f"\n[bold red]WARNING: {gsi.name} ({build_id}) is {rec.verdict.upper()} with your device![/]")
+            for reason in rec.reasons:
+                console.print(f"  [red]- {reason}[/]")
+            recommended = [r for r in recommendations if r.verdict == "recommended"]
+            if recommended:
+                best = recommended[0]
+                console.print(
+                    f"\n[green]Recommended instead:[/] {best.version.name} "
+                    f"({best.version.build_id}, patch {best.version.security_patch})"
+                )
+            guard = SafetyGuard()
+            if not guard.confirm_destructive("Flash this INCOMPATIBLE version anyway? HIGH RISK OF BRICK."):
+                raise SystemExit(1)
     else:
-        gsi = find_compatible_version(info.vndk_version or "30")
-        if not gsi:
-            console.print("[red]No compatible GSI version found.[/]")
+        # Auto-select: use recommendation engine to find the best version
+        recommendations = evaluate_all_versions(info)
+        recommended = [r for r in recommendations if r.verdict == "recommended"]
+        compatible = [r for r in recommendations if r.verdict == "compatible"]
+
+        if recommended:
+            gsi = recommended[0].version
+            console.print(
+                f"[bold green]Recommended:[/] {gsi.name} ({gsi.build_id}) "
+                f"— score {recommended[0].score}/100"
+            )
+            for reason in recommended[0].reasons[:3]:
+                console.print(f"  [dim]{reason}[/]")
+        elif compatible:
+            gsi = compatible[0].version
+            console.print(
+                f"[yellow]No strongly recommended version. Using best compatible:[/] "
+                f"{gsi.name} ({gsi.build_id})"
+            )
+        else:
+            console.print("[red]No compatible GSI version found for this device.[/]")
+            console.print("Run [bold]phonectl recommend[/] to see why.")
             raise SystemExit(1)
-        console.print(f"[bold]Auto-selected:[/] {gsi.name} ({gsi.build_id})")
 
     # Safety checks
     guard = SafetyGuard()
