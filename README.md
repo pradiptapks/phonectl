@@ -112,6 +112,16 @@ phonectl check --version SQ3A.220705.003.A1
 # Get ranked GSI recommendations for your device
 phonectl recommend
 
+# Run security audit — warranty check, stalkerware scan, permissions audit
+phonectl audit
+
+# Deep audit with root-level checks (requires rooted device)
+phonectl audit --deep
+
+# Export audit report as markdown or JSON
+phonectl audit --export md
+phonectl audit --export json --output report.json
+
 # Backup boot partitions before any changes
 phonectl backup create --from-dir /path/to/firmware/
 
@@ -148,6 +158,10 @@ phonectl tui
 | `phonectl check` | Run 14 hardware/firmware compatibility checks + show GSI recommendations |
 | `phonectl check --version <id>` | Detailed compatibility report for a specific GSI version |
 | `phonectl recommend` | Score and rank all GSI versions (Android 11-17) against your device |
+| `phonectl audit` | Security audit — warranty estimation, stalkerware scan, permissions |
+| `phonectl audit --deep` | Include root-level deep scan (hosts file, system integrity, hidden processes) |
+| `phonectl audit --export md` | Export audit report as markdown file |
+| `phonectl audit --export json` | Export audit report as JSON for automation |
 | `phonectl backup create` | Create a backup of boot partition images |
 | `phonectl backup list` | List all saved backups |
 | `phonectl backup restore <path>` | Restore boot partitions from a backup |
@@ -245,6 +259,67 @@ This tool was born from a real incident where a Moto G71 5G was bricked during a
 | Destructive operation confirmation | Accidental data wipe |
 | Kernel version gate | Prevents flashing Android 13+ on kernel 4.4 (won't boot) |
 
+## Security Audit
+
+`phonectl audit` performs a comprehensive security assessment of the connected device without requiring root access. An optional `--deep` flag enables root-level inspection for devices that have root.
+
+### Warranty Estimation
+
+Estimates warranty and OEM support status using device properties (first API level, vendor patch date, manufacturer). No internet lookup required — works entirely offline against a local database of OEM warranty periods.
+
+| Property | Source |
+|----------|--------|
+| Ship year | First API level mapped to release year |
+| Warranty period | OEM-specific (1-5 years depending on manufacturer) |
+| Software support | Vendor security patch age and OEM support timeline |
+| Safe to flash | Yes if warranty expired and support ended |
+
+### Security Checks (21 Total)
+
+**Non-Root Checks (17) — always run:**
+
+| # | Category | Check | What It Detects |
+|---|----------|-------|-----------------|
+| 1 | OS Integrity | Build signature | Unsigned or test-key builds |
+| 2 | OS Integrity | Verified boot state | Compromised boot chain (red = critical) |
+| 3 | OS Integrity | Build type | Debug builds with elevated access |
+| 4 | OS Integrity | SELinux status | Disabled or permissive security policies |
+| 5 | Root/Mods | Root access | su binary present |
+| 6 | Root/Mods | Root management apps | Magisk, SuperSU, KernelSU installed |
+| 7 | Root/Mods | Device encryption | Unencrypted storage |
+| 8 | Root/Mods | Custom ROM detection | System/vendor fingerprint mismatch |
+| 9 | Stalkerware | Known stalkerware scan | ~150 known spyware package names |
+| 10 | Stalkerware | Device admin apps | Suspicious apps with admin privileges |
+| 11 | Stalkerware | Accessibility abuse | Non-standard apps using accessibility service |
+| 12 | Permissions | Dangerous permissions | Third-party apps with camera+mic+location+SMS |
+| 13 | Permissions | Sideloading enabled | Unknown sources allowed |
+| 14 | Permissions | Developer options | Developer mode active |
+| 15 | Network | ADB over network | ADB exposed over WiFi |
+| 16 | Network | Persistent ADB TCP | ADB network port survives reboot |
+| 17 | Network | Background services | Unusually high service count |
+
+**Root-Level Deep Scan (4) — requires `--deep` flag and rooted device:**
+
+| # | Category | Check | What It Detects |
+|---|----------|-------|-----------------|
+| 18 | Deep Scan | Hosts file | DNS redirection entries |
+| 19 | Deep Scan | System partition integrity | Files modified after build |
+| 20 | Deep Scan | Kernel modules | Unexpected modules loaded |
+| 21 | Deep Scan | Hidden processes | Processes visible only to root |
+
+### Stalkerware Database
+
+The tool includes a database of ~150 known stalkerware, spyware, RAT, keylogger, and tracker package names sourced from threat intelligence (Coalition Against Stalkerware, EFF, Kaspersky, ESET). Categories: stalkerware, spyware, rat, keylogger, tracker.
+
+### Risk Levels
+
+| Level | Meaning |
+|-------|---------|
+| LOW | 0-2 warnings, no critical failures |
+| MEDIUM | 3-5 warnings |
+| HIGH | 6-9 warnings or critical failures |
+| CRITICAL | 10+ warnings or multiple critical failures |
+
 ## Project Structure
 
 ```
@@ -258,7 +333,9 @@ phonectl/
 │   ├── fastboot.py          # Fastboot subprocess wrapper
 │   ├── device.py            # Device detection and management
 │   ├── safety.py            # Pre-flash safety checks and validation
-│   └── backup.py            # Backup/restore boot partitions
+│   ├── backup.py            # Backup/restore boot partitions
+│   ├── audit.py             # Security scanner + warranty estimator
+│   └── stalkerware.py       # Stalkerware detection engine
 ├── vendors/
 │   ├── base.py              # BaseVendorPlugin abstract class
 │   ├── motorola.py          # Motorola reference plugin
@@ -270,7 +347,9 @@ phonectl/
 │   └── downloader.py        # Download with progress bar and checksum
 └── config/
     ├── vendors.yaml          # Vendor detection rules (USB IDs, properties)
-    └── gsi_versions.yaml     # GSI compatibility matrix
+    ├── gsi_versions.yaml     # GSI compatibility matrix
+    ├── warranty.yaml         # OEM warranty periods and support timelines
+    └── stalkerware.yaml      # Known stalkerware/spyware package database
 ```
 
 ## Contributing

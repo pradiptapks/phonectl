@@ -57,6 +57,12 @@ class DeviceInfo:
     first_api_level: str = ""
     vendor_security_patch: str = ""
     vendor_build_id: str = ""
+    # Security-relevant properties
+    build_tags: str = ""
+    build_type: str = ""
+    build_date: str = ""
+    selinux_status: str = ""
+    crypto_state: str = ""
     # Extra vendor-specific properties
     extra: dict = field(default_factory=dict)
 
@@ -150,6 +156,10 @@ class DeviceManager:
             "ro.vendor.build.security_patch": "vendor_security_patch",
             "ro.vendor.build.id": "vendor_build_id",
             "ro.opengles.version": "opengl_version",
+            "ro.build.tags": "build_tags",
+            "ro.build.type": "build_type",
+            "ro.build.date": "build_date",
+            "ro.crypto.state": "crypto_state",
         }
 
         for prop, attr in prop_map.items():
@@ -228,6 +238,21 @@ class DeviceManager:
                 info.slot_count = slot_count
         except ADBError:
             pass
+
+        # SELinux status (requires shell command, not getprop)
+        try:
+            selinux = adb.shell("getenforce")
+            if selinux:
+                info.selinux_status = selinux.strip()
+                info.extra["selinux_status"] = info.selinux_status
+        except ADBError:
+            pass
+
+        # Populate extra dict for audit module
+        info.extra["build_tags"] = info.build_tags
+        info.extra["build_type"] = info.build_type
+        info.extra["build_date"] = info.build_date
+        info.extra["crypto_state"] = info.crypto_state
 
         # Vendor build fingerprint (for stock firmware identification)
         try:

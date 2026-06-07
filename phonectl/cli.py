@@ -249,6 +249,52 @@ def recommend():
 
 
 # ═══════════════════════════════════════════════════════════════
+# phonectl audit
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+@click.option("--deep", is_flag=True, help="Include root-level deep scan (requires rooted device)")
+@click.option("--export", "export_format", type=click.Choice(["json", "md"]),
+              help="Export report to file (json or md)")
+@click.option("--output", "output_path", type=click.Path(),
+              help="Output file path for export (default: audit_<serial>.<ext>)")
+def audit(deep: bool, export_format: str | None, output_path: str | None):
+    """Run security audit and warranty estimation on connected device."""
+    from phonectl.core.audit import (
+        run_audit,
+        display_audit_report,
+        export_audit_json,
+        export_audit_markdown,
+    )
+
+    dm = _create_device_manager()
+    device_info = _detect_device(dm)
+    vendor = dm.resolve_vendor(device_info)
+
+    _show_device_panel(device_info, vendor.name if vendor else "Unknown")
+
+    adb = dm.get_adb()
+    if not adb:
+        console.print("[red]ADB connection required for audit.[/]")
+        raise SystemExit(1)
+
+    console.print("\n[bold]Running security audit...[/]\n")
+
+    report = run_audit(adb, device_info, deep=deep)
+    display_audit_report(report)
+
+    if export_format:
+        serial = device_info.serial or "device"
+        if not output_path:
+            ext = "json" if export_format == "json" else "md"
+            output_path = f"audit_{serial}.{ext}"
+        if export_format == "json":
+            export_audit_json(report, output_path)
+        else:
+            export_audit_markdown(report, output_path)
+
+
+# ═══════════════════════════════════════════════════════════════
 # phonectl backup
 # ═══════════════════════════════════════════════════════════════
 

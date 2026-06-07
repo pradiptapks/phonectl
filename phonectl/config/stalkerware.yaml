@@ -1,0 +1,342 @@
+# Known stalkerware, spyware, and surveillance app package names.
+#
+# Sources: Coalition Against Stalkerware, EFF, Kaspersky, Lookout,
+# ESET, Avast threat intelligence, and community reports.
+#
+# Categories:
+#   stalkerware  — commercial surveillance (partner/employee monitoring)
+#   spyware      — covert data theft
+#   rat          — remote access trojan
+#   tracker      — covert location tracking
+#   keylogger    — keystroke capture
+
+stalkerware:
+  # ── Commercial Stalkerware ──
+  - name: FlexiSpy
+    category: stalkerware
+    packages:
+      - com.flexispy.app
+      - com.flexispy.callrecord
+      - com.yourphone.monitor
+      - com.flexispy.monitor
+      - th.co.flexispy
+
+  - name: mSpy
+    category: stalkerware
+    packages:
+      - com.mspy.app
+      - org.mspy.view
+      - com.mspy.lite
+      - com.mspy.premium
+
+  - name: Cocospy
+    category: stalkerware
+    packages:
+      - com.cocospy.app
+      - com.cocospy.monitor
+      - com.cocospy.phone
+
+  - name: Spyic
+    category: stalkerware
+    packages:
+      - com.spyic.app
+      - com.spyic.monitor
+
+  - name: Spyzie
+    category: stalkerware
+    packages:
+      - com.spyzie.app
+      - com.spyzie.monitor
+
+  - name: Hoverwatch
+    category: stalkerware
+    packages:
+      - com.hoverwatch.app
+      - com.hoverwatch.monitor
+      - com.refog.hoverwatch
+
+  - name: iKeyMonitor
+    category: stalkerware
+    packages:
+      - com.ikeymonitor.app
+      - com.ikeymonitor.monitor
+      - ikeymonitor.app
+
+  - name: Highster Mobile
+    category: stalkerware
+    packages:
+      - com.highster.mobile
+      - com.highster.monitor
+
+  - name: SpyBubble
+    category: stalkerware
+    packages:
+      - com.spybubble.app
+      - com.spybubble.monitor
+
+  - name: MobiStealth
+    category: stalkerware
+    packages:
+      - com.mobistealth.app
+      - com.mobistealth.monitor
+
+  - name: XNSPY
+    category: stalkerware
+    packages:
+      - com.xnspy.app
+      - com.xnspy.monitor
+      - com.xnspy.lite
+
+  - name: pcTattletale
+    category: stalkerware
+    packages:
+      - com.pctattletale.app
+
+  - name: Spyera
+    category: stalkerware
+    packages:
+      - com.spyera.app
+      - com.spyera.monitor
+
+  - name: TheTruthSpy
+    category: stalkerware
+    packages:
+      - com.thetruthspy.app
+      - com.thetruthspy.monitor
+      - com.tts.app
+
+  - name: Copy9
+    category: stalkerware
+    packages:
+      - com.copy9.app
+      - com.copy9.monitor
+
+  - name: SpyHuman
+    category: stalkerware
+    packages:
+      - com.spyhuman.app
+      - com.spyhuman.monitor
+
+  - name: MobileTracker Free
+    category: stalkerware
+    packages:
+      - com.mobiletracker.free
+      - com.mobiletrackerfree.app
+
+  - name: FoneMonitor
+    category: stalkerware
+    packages:
+      - com.fonemonitor.app
+      - com.fonemonitor.monitor
+
+  - name: KidsGuard Pro
+    category: stalkerware
+    packages:
+      - com.kidsguard.pro
+      - com.kidsguardpro.app
+      - com.clevguard.kidsguard
+
+  - name: uMobix
+    category: stalkerware
+    packages:
+      - com.umobix.app
+      - com.umobix.monitor
+
+  - name: Eyezy
+    category: stalkerware
+    packages:
+      - com.eyezy.app
+      - com.eyezy.monitor
+
+  - name: Moniterro
+    category: stalkerware
+    packages:
+      - com.moniterro.app
+
+  - name: Parentaler
+    category: stalkerware
+    packages:
+      - com.parentaler.app
+
+  - name: LetMeSpy
+    category: stalkerware
+    packages:
+      - com.letmespy.app
+      - com.letmespy.tracker
+
+  - name: PhoneSheriff
+    category: stalkerware
+    packages:
+      - com.phonesheriff.app
+      - com.phonesheriff.monitor
+
+  # ── Remote Access Trojans ──
+  - name: Cerberus
+    category: rat
+    packages:
+      - com.lsdroid.cerberus
+      - com.lsdroid.cerberus3
+
+  - name: AhMyth RAT
+    category: rat
+    packages:
+      - ahmyth.mine.king.ahmyth
+      - com.ahmyth.app
+
+  - name: AndroRAT
+    category: rat
+    packages:
+      - my.app.client
+      - com.androrat.client
+
+  - name: DroidJack
+    category: rat
+    packages:
+      - net.droidjack.server
+      - com.droidjack.app
+
+  - name: SpyNote
+    category: rat
+    packages:
+      - com.spynote.app
+      - com.spynote.rat
+
+  - name: Dendroid
+    category: rat
+    packages:
+      - com.connect.service
+      - com.dendroid.app
+
+  - name: OmniRAT
+    category: rat
+    packages:
+      - com.omni.rat
+      - com.omnirat.app
+
+  # ── Spyware ──
+  - name: Pegasus (NSO)
+    category: spyware
+    packages:
+      - com.network.android
+      - com.nso.pegasus
+
+  - name: Predator (Cytrox)
+    category: spyware
+    packages:
+      - com.cytrox.predator
+
+  - name: FinFisher/FinSpy
+    category: spyware
+    packages:
+      - com.finfisher.app
+      - org.xmlpush.app
+      - com.android.services
+
+  - name: PhoneSpector
+    category: spyware
+    packages:
+      - com.phonespector.app
+      - com.phonespector.monitor
+
+  - name: SpyFone
+    category: spyware
+    packages:
+      - com.spyfone.app
+      - com.spyfone.monitor
+
+  - name: TeenSafe
+    category: spyware
+    packages:
+      - com.teensafe.app
+      - com.teensafe.monitor
+
+  - name: Auto Forward
+    category: spyware
+    packages:
+      - com.autoforward.app
+      - com.autoforward.spy
+
+  - name: GuestSpy
+    category: spyware
+    packages:
+      - com.guestspy.app
+
+  - name: ThaiSpy
+    category: spyware
+    packages:
+      - com.thaispy.app
+
+  # ── Keyloggers ──
+  - name: KidLogger
+    category: keylogger
+    packages:
+      - com.kidlogger.app
+      - com.kidlogger.monitor
+
+  - name: Refog Keylogger
+    category: keylogger
+    packages:
+      - com.refog.keylogger
+      - com.refog.mobile
+
+  - name: Spyrix
+    category: keylogger
+    packages:
+      - com.spyrix.app
+      - com.spyrix.keylogger
+
+  # ── Covert Trackers ──
+  - name: Life360 (legitimate but misused)
+    category: tracker
+    packages:
+      - com.life360.android.safetymapd
+
+  - name: GPS Phone Tracker
+    category: tracker
+    packages:
+      - com.fsp.android.c
+      - com.gps.phonetracker
+
+  - name: Family Locator
+    category: tracker
+    packages:
+      - com.sygic.familywhere.android
+
+  - name: Prey Anti Theft
+    category: tracker
+    packages:
+      - com.prey
+
+  - name: Where's My Droid
+    category: tracker
+    packages:
+      - com.alienmanfc6.wheresmyandroid
+
+  # ── Suspicious System Impersonators ──
+  - name: "Fake System Update"
+    category: spyware
+    packages:
+      - com.update.system.important
+      - com.system.update.check
+      - com.android.systemupdate
+      - com.update.android.sys
+
+  - name: "Fake Google Services"
+    category: spyware
+    packages:
+      - com.google.android.gms.update
+      - com.googIe.android.gms
+      - com.g00gle.android.gms
+
+  - name: "Fake Samsung Services"
+    category: spyware
+    packages:
+      - com.samsung.android.update
+      - com.sarnsung.android.app
+
+  - name: "Fake WhatsApp"
+    category: spyware
+    packages:
+      - com.whatsapp.update
+      - com.whatssapp.app
+      - com.whatsaap.messenger

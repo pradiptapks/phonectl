@@ -100,13 +100,14 @@ def _main_menu() -> Panel:
 
     items = [
         ("1", "Device Info — Show connected device details"),
-        ("2", "Flash GSI — Download and flash a Generic System Image"),
-        ("3", "Update — Update security patch without data loss"),
-        ("4", "Backup — Backup boot partition images"),
-        ("5", "Restore — Restore boot partitions from backup"),
-        ("6", "Recover — Emergency recovery from boot loop"),
-        ("7", "Firmware — List available GSI versions"),
-        ("8", "Regions — Show firmware regions for a device"),
+        ("2", "Security Audit — Warranty check, stalkerware scan, permissions audit"),
+        ("3", "Flash GSI — Download and flash a Generic System Image"),
+        ("4", "Update — Update security patch without data loss"),
+        ("5", "Backup — Backup boot partition images"),
+        ("6", "Restore — Restore boot partitions from backup"),
+        ("7", "Recover — Emergency recovery from boot loop"),
+        ("8", "Firmware — List available GSI versions"),
+        ("9", "Regions — Show firmware regions for a device"),
         ("0", "Exit"),
     ]
 
@@ -250,6 +251,26 @@ def _handle_regions() -> None:
         console.print(f"[red]Error: {exc}[/]")
 
 
+def _handle_audit(dm: DeviceManager) -> None:
+    from phonectl.core.audit import run_audit, display_audit_report
+
+    info = dm.detect()
+    if info.state == DeviceState.DISCONNECTED:
+        console.print("[red]No device connected.[/]")
+        return
+
+    adb = dm.get_adb()
+    if not adb:
+        console.print("[red]ADB connection required for audit.[/]")
+        return
+
+    deep = Prompt.ask("Include root-level deep scan?", choices=["y", "n"], default="n") == "y"
+
+    console.print("\n[bold]Running security audit...[/]\n")
+    report = run_audit(adb, info, deep=deep)
+    display_audit_report(report)
+
+
 def run_tui() -> None:
     """Main TUI entry point — interactive menu loop."""
     dm = _create_dm()
@@ -261,13 +282,14 @@ def run_tui() -> None:
 
     handlers = {
         "1": lambda: _handle_info(dm),
-        "2": lambda: _handle_flash_gsi(dm),
-        "3": lambda: _handle_update(dm),
-        "4": lambda: _handle_backup(dm),
-        "5": lambda: _handle_restore(dm),
-        "6": lambda: _handle_recover(dm),
-        "7": _handle_firmware,
-        "8": _handle_regions,
+        "2": lambda: _handle_audit(dm),
+        "3": lambda: _handle_flash_gsi(dm),
+        "4": lambda: _handle_update(dm),
+        "5": lambda: _handle_backup(dm),
+        "6": lambda: _handle_restore(dm),
+        "7": lambda: _handle_recover(dm),
+        "8": _handle_firmware,
+        "9": _handle_regions,
     }
 
     while True:
