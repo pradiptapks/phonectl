@@ -1,0 +1,43 @@
+# GSI version registry — known versions with compatibility and download info.
+#
+# Compatibility is tracked by min_vndk: the minimum VNDK version on the
+# device's vendor partition that the GSI is known to work with.
+#
+# status: stable | beta | broken
+# broken = confirmed to cause boot loops on certain VNDK versions
+
+versions:
+  - name: "Android 16 (Baklava)"
+    build_id: "BP2A.250605.031.A3"
+    security_patch: "2025-06-05"
+    status: stable
+    download_url: "https://dl.google.com/developers/android/baklava/images/gsi/gsi_gms_arm64-exp-BP2A.250605.031.A3-13578795-38e52cb0.zip"
+    sha256: "38e52cb0a3331a5ee0c653a4da2401ce74598a955acbd00aa85b6326036154c5"
+    min_vndk: 30
+    notes: "Confirmed working on Moto G71 5G (corfur, VNDK 30). Recommended baseline."
+
+  - name: "Android 16 QPR1"
+    build_id: "BP3A.250905.014"
+    security_patch: "2025-09-05"
+    status: stable
+    download_url: ""
+    sha256: ""
+    min_vndk: 31
+    notes: "Requires VNDK 31+. NOT tested on VNDK 30 devices."
+
+  - name: "Android 16 QPR2"
+    build_id: "BP4A.251205.006"
+    security_patch: "2025-12-05"
+    status: broken
+    download_url: ""
+    sha256: ""
+    min_vndk: 32
+    notes: "BROKEN on VNDK 30 devices (boot loop). Requires VNDK 32+."
+
+# Compatibility matrix (for reference):
+#
+# VNDK 30 (Android 11 vendor): BP2A only
+# VNDK 31 (Android 12 vendor): BP2A, BP3A
+# VNDK 32 (Android 12L vendor): BP2A, BP3A, BP4A
+# VNDK 33 (Android 13 vendor): BP2A, BP3A, BP4A
+# VNDK 34 (Android 14 vendor): all versions

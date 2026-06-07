@@ -1,0 +1,69 @@
+# Vendor detection rules and device-specific configuration.
+# phonectl auto-detects the vendor using USB IDs and Android properties,
+# then routes to the matching vendor plugin.
+
+vendors:
+  motorola:
+    display_name: Motorola
+    usb_vendor_ids: ["22b8"]
+    detect_properties:
+      ro.product.manufacturer: ["motorola", "Motorola"]
+    firmware_mirror: "https://mirrors-obs-1.lolinet.com/firmware/lenomola"
+    boot_partitions: [boot, vendor_boot, dtbo, vbmeta]
+    fastbootd_quirks:
+      ap_fastboot_no_usb: true
+      requires_replug: true
+      use_fastbootd: true
+      sparse_limit: "128M"
+    regions:
+      RETIN: India
+      RETBR: Brazil
+      RETEU: Europe
+      RETGB: United Kingdom
+      RETAIL: Generic Retail
+      RETAR: Argentina
+      AMXMX: "Mexico (Telcel)"
+      ATTMX: "Mexico (AT&T)"
+      OPENLA: "Latin America (Open)"
+
+  google:
+    display_name: Google Pixel
+    usb_vendor_ids: ["18d1"]
+    detect_properties:
+      ro.product.manufacturer: ["Google"]
+    firmware_mirror: "https://developers.google.com/android/images"
+    boot_partitions: [boot, dtbo, vbmeta]
+    fastbootd_quirks:
+      use_fastbootd: false
+      sparse_limit: "256M"
+
+  samsung:
+    display_name: Samsung
+    usb_vendor_ids: ["04e8"]
+    detect_properties:
+      ro.product.manufacturer: ["samsung", "Samsung"]
+    firmware_mirror: "https://samfw.com"
+    boot_partitions: [boot, dtbo, vbmeta]
+    flash_protocol: odin
+    fastbootd_quirks:
+      uses_download_mode: true
+      no_fastboot: true
+
+  oneplus:
+    display_name: OnePlus
+    usb_vendor_ids: ["2a70"]
+    detect_properties:
+      ro.product.manufacturer: ["OnePlus"]
+    boot_partitions: [boot, dtbo, vbmeta]
+    fastbootd_quirks:
+      sparse_limit: "256M"
+
+  xiaomi:
+    display_name: Xiaomi
+    usb_vendor_ids: ["2717", "18d1"]
+    detect_properties:
+      ro.product.manufacturer: ["Xiaomi", "Redmi", "POCO"]
+    boot_partitions: [boot, vendor_boot, dtbo, vbmeta]
+    fastbootd_quirks:
+      requires_mi_unlock: true
+      sparse_limit: "256M"
