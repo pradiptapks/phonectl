@@ -674,6 +674,68 @@ def firmware_regions(codename: str):
 
 
 # ═══════════════════════════════════════════════════════════════
+# phonectl diagnose
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+def diagnose():
+    """Smart diagnostics — analyze device health and generate action plan."""
+    from phonectl.core.diagnose import DiagnosticEngine, display_diagnosis
+
+    dm = _create_device_manager()
+    device_info = _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        console.print("[red]ADB connection required.[/]")
+        raise SystemExit(1)
+
+    vendor = dm.resolve_vendor(device_info)
+    _show_device_panel(device_info, vendor.name if vendor else "Unknown")
+
+    console.print("\n[bold]Running diagnostics...[/]\n")
+    engine = DiagnosticEngine()
+    report = engine.run(adb, device_info)
+    display_diagnosis(report)
+
+
+# ═══════════════════════════════════════════════════════════════
+# phonectl report
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+@click.option("--export", "export_format", type=click.Choice(["md", "json"]),
+              help="Export report to file")
+@click.option("--output", "output_path", type=click.Path(),
+              help="Output file path")
+def report(export_format: str | None, output_path: str | None):
+    """Generate comprehensive device health report."""
+    from phonectl.core.report import ReportGenerator
+
+    dm = _create_device_manager()
+    device_info = _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        console.print("[red]ADB connection required.[/]")
+        raise SystemExit(1)
+
+    console.print("[bold]Generating health report...[/]\n")
+    gen = ReportGenerator()
+    health_report = gen.generate(adb, device_info)
+
+    if export_format:
+        serial = device_info.serial or "device"
+        if not output_path:
+            ext = "json" if export_format == "json" else "md"
+            output_path = f"report_{serial}.{ext}"
+        if export_format == "json":
+            gen.render_json(health_report, output_path)
+        else:
+            gen.render_markdown(health_report, output_path)
+    else:
+        gen.render_text(health_report)
+
+
+# ═══════════════════════════════════════════════════════════════
 # phonectl tune
 # ═══════════════════════════════════════════════════════════════
 

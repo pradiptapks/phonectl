@@ -652,6 +652,14 @@ def run_audit(adb: ADBClient, info: DeviceInfo, deep: bool = False) -> AuditRepo
     report.checks = scanner.run_all(info, deep=deep)
     report.root_checks_run = deep and report.root_available
 
+    # Anomaly detection
+    try:
+        from phonectl.core.anomaly import AnomalyDetector
+        detector = AnomalyDetector(adb)
+        report.checks.extend(detector.run_all())
+    except Exception:
+        pass
+
     # Risk level
     critical_fails = sum(1 for c in report.checks if not c.passed and c.severity == "critical")
     warning_fails = sum(1 for c in report.checks if not c.passed and c.severity == "warning")

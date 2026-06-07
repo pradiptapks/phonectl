@@ -1,0 +1,124 @@
+# Diagnostic rules for phonectl diagnose.
+# Each rule has conditions (evaluated against device evidence) and actions.
+# Conditions use: <, >, <=, >=, ==, != operators.
+# Available evidence keys: ram_total_mb, storage_free_gb, storage_total_gb,
+#   animation_scale, security_score, stalkerware_found, bloatware_count,
+#   warranty_expired, software_support_ended, gsi_compatible_count,
+#   services_count, sideloading_enabled, has_screen_lock, battery_level,
+#   device_age_years, security_fixable, total_packages
+
+rules:
+  - id: stalkerware_detected
+    name: "Stalkerware / spyware detected"
+    priority: critical
+    conditions:
+      - stalkerware_found > 0
+    description: "Found {stalkerware_found} known stalkerware/spyware package(s). Device may be under surveillance."
+    actions:
+      - "phonectl audit --deep"
+      - "phonectl reset --factory"
+
+  - id: no_screen_lock
+    name: "No screen lock configured"
+    priority: critical
+    conditions:
+      - has_screen_lock == false
+    description: "Device has no PIN, pattern, or password. Anyone with physical access can read all data."
+    actions:
+      - "phonectl security --harden"
+
+  - id: security_poor
+    name: "Security posture is poor"
+    priority: high
+    conditions:
+      - security_score < 50
+      - security_fixable > 2
+    description: "Security score: {security_score}/100 with {security_fixable} auto-fixable issues."
+    actions:
+      - "phonectl security --harden"
+
+  - id: sideloading_on
+    name: "Unknown sources (sideloading) enabled"
+    priority: high
+    conditions:
+      - sideloading_enabled == true
+    description: "Untrusted APKs can be installed. This is a common malware vector."
+    actions:
+      - "phonectl security --harden"
+
+  - id: slow_phone_low_ram
+    name: "Phone may be slow — low RAM with default animations"
+    priority: high
+    conditions:
+      - ram_total_mb < 4096
+      - animation_scale > 0.5
+    description: "RAM: {ram_total_mb} MB with animations at {animation_scale}x. Reducing animations improves perceived speed."
+    actions:
+      - "phonectl tune --profile fast"
+
+  - id: slow_phone_bloatware
+    name: "Bloatware consuming resources"
+    priority: high
+    conditions:
+      - bloatware_count > 3
+    description: "{bloatware_count} known bloatware apps detected. Disabling them frees RAM and battery."
+    actions:
+      - "phonectl storage bloatware list"
+      - "phonectl storage bloatware disable"
+
+  - id: too_many_services
+    name: "Excessive background services"
+    priority: medium
+    conditions:
+      - services_count > 150
+    description: "{services_count} background services running. This drains battery and slows the device."
+    actions:
+      - "phonectl tune --profile battery"
+
+  - id: outdated_os
+    name: "OS is outdated and unsupported"
+    priority: medium
+    conditions:
+      - warranty_expired == true
+      - software_support_ended == true
+      - gsi_compatible_count > 0
+    description: "Device is out of warranty with no OEM updates. {gsi_compatible_count} compatible GSI version(s) available."
+    actions:
+      - "phonectl recommend"
+      - "phonectl flash gsi"
+
+  - id: storage_low
+    name: "Storage space is low"
+    priority: medium
+    conditions:
+      - storage_free_gb < 4
+    description: "Only {storage_free_gb} GB free of {storage_total_gb} GB. Cleanup recommended."
+    actions:
+      - "phonectl storage cleanup"
+
+  - id: old_device
+    name: "Device is very old"
+    priority: low
+    conditions:
+      - device_age_years > 5
+    description: "Device is approximately {device_age_years} years old. Consider upgrading hardware or flashing a lightweight GSI."
+    actions:
+      - "phonectl check"
+
+  - id: battery_low_for_operations
+    name: "Battery too low for flash operations"
+    priority: low
+    conditions:
+      - battery_level < 50
+      - battery_level >= 0
+    description: "Battery at {battery_level}%. Charge to 50%+ before flashing or resetting."
+    actions: []
+
+  - id: performance_default
+    name: "Performance tuning not applied"
+    priority: info
+    conditions:
+      - animation_scale >= 1.0
+    description: "Default Android animations are active. Reducing them can make the phone feel faster."
+    actions:
+      - "phonectl tune --profile balanced"

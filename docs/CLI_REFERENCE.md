@@ -15,6 +15,24 @@ Complete command reference for all phonectl commands and options.
 
 ---
 
+## Smart Diagnostics
+
+### `phonectl diagnose`
+
+Run smart diagnostics — analyzes device health by collecting evidence from all modules (info, audit, security, storage, tune) and evaluating diagnostic rules. Produces a prioritized action plan with specific `phonectl` commands to fix each issue.
+
+### `phonectl report`
+
+Generate a comprehensive device health report combining all module outputs into a single assessment.
+
+| Option | Description |
+|--------|-------------|
+| `--export md` | Export report as Markdown file |
+| `--export json` | Export report as JSON |
+| `--output <path>` | Custom output file path |
+
+---
+
 ## Device & Compatibility
 
 ### `phonectl info`
@@ -221,12 +239,30 @@ Launch the interactive TUI (Terminal User Interface) with a menu-driven interfac
 
 ---
 
+## Future: AI-Powered Commands (Not Yet Implemented)
+
+These commands are planned for future releases via the AI plugin system (`phonectl/ai/`):
+
+### `phonectl ask "<question>"` (future)
+
+AI-powered troubleshooting. Sends device context to Ollama (local) or Claude (MCP) and returns analysis. Falls back to rule-based diagnostics if no AI provider is available.
+
+### `phonectl compat` (future)
+
+Look up community compatibility data for the current device from a crowdsourced database.
+
+### `phonectl compat --submit` (future)
+
+Submit an anonymous compatibility report (codename, VNDK, kernel, GSI build, result only — no PII).
+
+---
+
 ## Examples
 
 ```bash
 # Typical first-time workflow for an out-of-warranty device:
-phonectl info                          # 1. Check device details
-phonectl audit                         # 2. Security audit + warranty check
+phonectl diagnose                      # 1. Smart diagnostics + action plan
+phonectl report                        # 2. Full health assessment
 phonectl check                         # 3. Hardware compatibility + GSI recommendations
 phonectl backup create --from-dir ./fw # 4. Backup boot partitions
 phonectl flash gsi                     # 5. Flash recommended GSI

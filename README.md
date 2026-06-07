@@ -15,15 +15,19 @@ A Python CLI/TUI tool that automates Android phone lifecycle management — flas
 ## Features
 
 - **Device Detection** — auto-detect vendor, model, hardware specs, and firmware
+- **Smart Diagnostics** — rule-based expert system analyzes device health and generates prioritized action plan
+- **Health Report** — comprehensive device assessment combining security, performance, storage, and compatibility
+- **Anomaly Detection** — statistical analysis of battery drain, data usage, and unused app resource waste
 - **Compatibility Check** — 14 hardware/firmware checks + ranked GSI recommendations (Android 11–17)
 - **GSI Flash** — download, validate, and flash with safety guards and incompatible version blocking
-- **Security Audit** — warranty estimation, stalkerware scan (150+ signatures), 21 security checks
+- **Security Audit** — warranty estimation, stalkerware scan (150+ signatures), 24 security checks (incl. anomaly)
 - **Security Guard** — 23-check network/lockscreen/app security assessment with 0–100 scoring and auto-hardening
 - **Performance Tuning** — 4 profiles (fast/balanced/battery/gaming), ART compilation
-- **Storage Management** — 3-tier cleanup, bloatware detection/removal for 6 vendors with SafetyGuard
+- **Storage Management** — 3-tier cleanup, usage-based bloatware scoring for 6 vendors with SafetyGuard
 - **Factory Reset** — safe reset flows with double confirmation, FRP warnings
 - **Backup & Recovery** — boot partition backup/restore, emergency recovery from boot loops
 - **Vendor Plugins** — Motorola (full), Google Pixel and Samsung (stubs), extensible for others
+- **AI Plugin System** — extensible provider interface for Ollama, Claude/MCP, and community data (future)
 
 ## Installation
 
@@ -51,6 +55,8 @@ phonectl --version
 ```bash
 # Device info and diagnostics
 phonectl info                           # Show device details
+phonectl diagnose                       # Smart diagnostics + prioritized action plan
+phonectl report                         # Comprehensive device health report
 phonectl check                          # Hardware compatibility + GSI recommendations
 phonectl audit                          # Security audit + warranty check
 
@@ -76,7 +82,7 @@ phonectl tui                            # Menu-driven TUI
 
 | Category | Commands |
 |----------|----------|
-| **Diagnostics** | `info`, `check`, `recommend` |
+| **Diagnostics** | `info`, `diagnose`, `report`, `check`, `recommend` |
 | **Security** | `audit`, `security`, `security --harden` |
 | **Performance** | `tune --profile`, `tune --compile` |
 | **Storage** | `storage show`, `storage cleanup`, `storage bloatware` |
@@ -101,15 +107,19 @@ For the full command reference with all flags and options, see [docs/CLI_REFEREN
 ```
 phonectl
 ├── CLI / TUI              ← User interface (click + rich)
+├── DiagnosticEngine       ← Rule-based expert system, prioritized action plans
+├── ReportGenerator        ← Comprehensive health reports (text/markdown/JSON)
+├── AnomalyDetector        ← Statistical analysis of battery, data, app usage
 ├── DeviceManager          ← Detects device, resolves vendor plugin
 ├── VendorPlugin           ← Vendor-specific flash sequences and quirks
 ├── SafetyGuard            ← Pre-flash validation, USB monitoring, input sanitization
 ├── AuditEngine            ← Warranty estimation, stalkerware scan, security checks
 ├── SecurityGuard          ← Network/lockscreen/app security, scoring, hardening
 ├── TuneEngine             ← Performance profiles, ART compilation
-├── StorageAnalyzer        ← Cleanup, bloatware management with protected whitelist
+├── StorageAnalyzer        ← Cleanup, usage-based bloatware scoring
 ├── BackupManager          ← Boot partition backup/restore
-└── FirmwareManager        ← GSI download, version registry, recommendations
+├── FirmwareManager        ← GSI download, version registry, recommendations
+└── AI Plugins (future)    ← Ollama, Claude/MCP, community data providers
 ```
 
 Safety is built in at every level — VNDK compatibility matrix, kernel version gating, incompatible version blocking, protected app whitelist, input sanitization, USB monitoring, double confirmations, dry-run mode, and undo logs. Born from a real incident where a Moto G71 5G was bricked during a flash attempt.

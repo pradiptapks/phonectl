@@ -100,15 +100,16 @@ def _main_menu() -> Panel:
 
     items = [
         ("1", "Device Info — Show connected device details"),
-        ("2", "Security Audit — Warranty check, stalkerware scan, permissions audit"),
-        ("3", "Security Guard — Network, lockscreen, app security + score"),
-        ("4", "Performance Tune — Apply speed/battery/gaming profiles"),
-        ("5", "Storage — Analyze storage, cleanup caches, manage bloatware"),
-        ("6", "Flash GSI — Download and flash a Generic System Image"),
-        ("7", "Update — Update security patch without data loss"),
-        ("8", "Backup / Restore — Manage boot partition backups"),
-        ("9", "Recover — Emergency recovery from boot loop"),
+        ("2", "Diagnose — Smart diagnostics with prioritized action plan"),
+        ("3", "Health Report — Comprehensive device health assessment"),
+        ("4", "Security Audit — Warranty check, stalkerware scan, permissions"),
+        ("5", "Security Guard — Network, lockscreen, app security + score"),
+        ("6", "Performance Tune — Apply speed/battery/gaming profiles"),
+        ("7", "Storage — Analyze storage, cleanup caches, manage bloatware"),
+        ("8", "Flash GSI — Download and flash a Generic System Image"),
+        ("9", "Backup / Restore — Manage boot partition backups"),
         ("r", "Reset — Factory reset, wipe data, or clear caches"),
+        ("c", "Recover — Emergency recovery from boot loop"),
         ("f", "Firmware — List GSI versions or firmware regions"),
         ("0", "Exit"),
     ]
@@ -251,6 +252,48 @@ def _handle_regions() -> None:
             console.print(f"  {r}")
     except Exception as exc:
         console.print(f"[red]Error: {exc}[/]")
+
+
+def _handle_diagnose(dm: DeviceManager) -> None:
+    from phonectl.core.diagnose import DiagnosticEngine, display_diagnosis
+
+    info = dm.detect()
+    if info.state == DeviceState.DISCONNECTED:
+        console.print("[red]No device connected.[/]")
+        return
+    adb = dm.get_adb()
+    if not adb:
+        return
+
+    console.print("\n[bold]Running diagnostics...[/]\n")
+    engine = DiagnosticEngine()
+    report = engine.run(adb, info)
+    display_diagnosis(report)
+
+
+def _handle_report(dm: DeviceManager) -> None:
+    from phonectl.core.report import ReportGenerator
+
+    info = dm.detect()
+    if info.state == DeviceState.DISCONNECTED:
+        console.print("[red]No device connected.[/]")
+        return
+    adb = dm.get_adb()
+    if not adb:
+        return
+
+    console.print("[bold]Generating health report...[/]\n")
+    gen = ReportGenerator()
+    report = gen.generate(adb, info)
+    gen.render_text(report)
+
+    export = Prompt.ask("Export report?", choices=["md", "json", "skip"], default="skip")
+    if export != "skip":
+        path = f"report_{info.serial or 'device'}.{export}"
+        if export == "json":
+            gen.render_json(report, path)
+        else:
+            gen.render_markdown(report, path)
 
 
 def _handle_audit(dm: DeviceManager) -> None:
@@ -421,15 +464,16 @@ def run_tui() -> None:
 
     handlers = {
         "1": lambda: _handle_info(dm),
-        "2": lambda: _handle_audit(dm),
-        "3": lambda: _handle_security(dm),
-        "4": lambda: _handle_tune(dm),
-        "5": lambda: _handle_storage(dm),
-        "6": lambda: _handle_flash_gsi(dm),
-        "7": lambda: _handle_update(dm),
-        "8": lambda: _handle_backup_menu(dm),
-        "9": lambda: _handle_recover(dm),
+        "2": lambda: _handle_diagnose(dm),
+        "3": lambda: _handle_report(dm),
+        "4": lambda: _handle_audit(dm),
+        "5": lambda: _handle_security(dm),
+        "6": lambda: _handle_tune(dm),
+        "7": lambda: _handle_storage(dm),
+        "8": lambda: _handle_flash_gsi(dm),
+        "9": lambda: _handle_backup_menu(dm),
         "r": lambda: _handle_reset_menu(dm),
+        "c": lambda: _handle_recover(dm),
         "f": _handle_firmware,
     }
 

@@ -64,11 +64,20 @@ The tool communicates with Android devices over USB via `adb` and `fastboot` —
 │  │safety.py │  │backup.py │                                     │
 │  └──────────┘  └──────────┘                                     │
 ├─────────────────────────────────────────────────────────────────┤
+│                    Intelligence Layer                           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                         │
+│  │Diagnostic│ │ Anomaly  │ │ Report   │                         │
+│  │Engine    │ │Detector  │ │Generator │                         │
+│  │diagnose  │ │anomaly.py│ │report.py │                         │
+│  │.py       │ │          │ │          │                         │
+│  └──────────┘ └──────────┘ └──────────┘                         │
+├─────────────────────────────────────────────────────────────────┤
 │                    Feature Modules                              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐           │
 │  │  Audit   │ │  Tune    │ │ Storage  │ │ Security  │           │
 │  │audit.py  │ │tune.py   │ │storage.py│ │security.py│           │
-│  │+stalker  │ │          │ │          │ │           │           │
+│  │+stalker  │ │          │ │+scoring  │ │           │           │
+│  │+anomaly  │ │          │ │          │ │           │           │
 │  └──────────┘ └──────────┘ └──────────┘ └───────────┘           │
 ├─────────────────────────────────────────────────────────────────┤
 │                    Firmware Layer                               │
@@ -99,11 +108,14 @@ The tool communicates with Android devices over USB via `adb` and `fastboot` —
 
 ### Core (`phonectl/core/`)
 
-| Module | Purpose | Lines |
-|--------|---------|-------|
+| Module | Purpose | Description |
+|--------|---------|-------------|
 | `adb.py` | ADB subprocess wrapper with input sanitization | Shell, getprop, push/pull, reboot, sideload |
 | `fastboot.py` | Fastboot wrapper for bootloader operations | Flash, getvar, wipe, set_active, reboot |
 | `device.py` | Device detection, identification, property gathering | DeviceManager, DeviceInfo dataclass |
+| `diagnose.py` | Rule-based expert system for smart diagnostics | Collects evidence, evaluates rules, generates action plan |
+| `anomaly.py` | Statistical anomaly detection | Battery drain, data usage, unused app analysis |
+| `report.py` | Comprehensive health report generator | Text/Markdown/JSON output with composite health score |
 | `safety.py` | Pre-flash validation — 14 compatibility checks | VNDK matrix, kernel gate, hardware requirements |
 | `backup.py` | Boot partition backup/restore with metadata | Timestamped archives, latest symlink |
 | `audit.py` | Security audit + warranty estimation (21 checks) | WarrantyEstimator, SecurityScanner |
@@ -359,7 +371,23 @@ class BaseVendorPlugin(ABC):
 | Config schema validation | Validate YAML files against schema on load | Low |
 | App usage analysis | Use `dumpsys usagestats` to identify unused apps | Medium |
 
-### Priority 3 — Long-term Vision
+### Priority 3 — AI Plugin System (Agentic AI)
+
+The `phonectl/ai/` package provides an extensible provider interface for AI-powered analysis. Provider stubs are included; implementations are future work.
+
+| Enhancement | Provider | Connection | Effort |
+|-------------|----------|-----------|--------|
+| `phonectl ask` — AI troubleshooting | Ollama (local) | `localhost:11434` | Medium |
+| `phonectl ask` — AI troubleshooting | Claude via Cursor SDK/MCP | MCP protocol | Medium |
+| `phonectl compat` — community data | GitHub Pages JSON | Static fetch | Low |
+| `phonectl compat --submit` — report | GitHub Issues API | `gh` CLI | Low |
+| phonectl as MCP server | Claude/Cursor | MCP resources + tools | High |
+
+Architecture: `AIProvider` ABC with `AIProviderRegistry` that tries providers in order (Ollama -> Claude -> fallback to rule-based). Device context sent to providers contains only non-PII data.
+
+MCP server design (future): phonectl exposes device data as MCP resources (`phonectl://device/info`, `phonectl://device/audit`) and tools (`phonectl_diagnose`, `phonectl_flash`, `phonectl_tune`) that Claude can invoke through the Cursor IDE.
+
+### Priority 4 — Long-term Vision
 
 | Enhancement | Description | Effort |
 |-------------|-------------|--------|
@@ -373,13 +401,13 @@ class BaseVendorPlugin(ABC):
 | Scheduled scans | Cron-based periodic audit and update checks | Medium |
 | OTA-like updates | Background GSI update to inactive slot, similar to A/B OTA | High |
 
-### Priority 4 — Community / Ecosystem
+### Priority 5 — Community / Ecosystem
 
 | Enhancement | Description |
 |-------------|-------------|
 | Plugin marketplace | Community-contributed vendor plugins |
 | Stalkerware DB updates | Automated pull from threat intelligence feeds |
-| Device compatibility reports | Crowdsourced GSI compatibility data per device model |
+| Crowdsourced compatibility | Community GSI compatibility reports via GitHub |
 | Localization | Multi-language CLI/TUI support |
 
 ---

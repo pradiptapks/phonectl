@@ -231,8 +231,47 @@ class StorageAnalyzer:
 
         return results
 
+    def _get_usage_stats(self) -> dict[str, dict]:
+        """Parse dumpsys usagestats for last-used time and foreground duration."""
+        import re, time
+        stats: dict[str, dict] = {}
+        now_ms = int(time.time() * 1000)
+
+        try:
+            output = self.adb.shell("dumpsys usagestats")
+            current_pkg = ""
+
+            for line in output.splitlines():
+                pkg_match = re.search(r'package=(\S+)', line)
+                if pkg_match:
+                    current_pkg = pkg_match.group(1)
+                    if current_pkg not in stats:
+                        stats[current_pkg] = {"last_used_ms": 0, "foreground_ms": 0}
+
+                if current_pkg:
+                    time_match = re.search(r'lastTimeUsed="?(\d+)"?', line)
+                    if time_match:
+                        ts = int(time_match.group(1))
+                        stats[current_pkg]["last_used_ms"] = max(stats[current_pkg]["last_used_ms"], ts)
+
+                    fg_match = re.search(r'totalTimeInForeground="?(\d+)"?', line)
+                    if fg_match:
+                        stats[current_pkg]["foreground_ms"] += int(fg_match.group(1))
+
+            for pkg, data in stats.items():
+                last = data["last_used_ms"]
+                if last > 0:
+                    data["days_since_use"] = (now_ms - last) // (24 * 3600 * 1000)
+                else:
+                    data["days_since_use"] = 9999
+                data["never_opened"] = data["foreground_ms"] == 0 and data["last_used_ms"] == 0
+        except Exception:
+            pass
+
+        return stats
+
     def list_bloatware(self, vendor: str = "") -> list[dict]:
-        """Detect installed bloatware based on vendor database."""
+        """Detect installed bloatware with usage-based scoring."""
         bloatware_db = _load_bloatware(vendor)
         if not bloatware_db:
             return []
@@ -246,28 +285,65 @@ class StorageAnalyzer:
         except Exception:
             return []
 
+        usage = self._get_usage_stats()
+
         found = []
         for entry in bloatware_db:
             pkg = entry.get("pkg", "")
-            if pkg in installed_set:
-                found.append(entry)
+            if pkg not in installed_set:
+                continue
+
+            pkg_usage = usage.get(pkg, {})
+            never_opened = pkg_usage.get("never_opened", True)
+            days_since = pkg_usage.get("days_since_use", 9999)
+            in_db = True
+
+            score = (
+                30 * (1 if never_opened else 0) +
+                25 * (1 if days_since > 30 else 0) +
+                min(20, int(20 * days_since / 365)) +
+                10 * (1 if in_db else 0)
+            )
+            score = min(100, max(0, score))
+
+            entry = dict(entry)
+            entry["bloatware_score"] = score
+            entry["days_since_use"] = days_since
+            entry["never_opened"] = never_opened
+            found.append(entry)
+
+        found.sort(key=lambda e: e.get("bloatware_score", 0), reverse=True)
         return found
 
     def show_bloatware(self, vendor: str = "") -> None:
-        """Display detected bloatware."""
+        """Display detected bloatware with usage-based scoring."""
         found = self.list_bloatware(vendor)
         if not found:
             console.print("[green]No known bloatware detected.[/]")
             return
 
-        table = Table(title=f"Detected Bloatware ({len(found)} apps)")
+        table = Table(title=f"Bloatware Analysis — Usage-Based Scoring ({len(found)} apps)")
+        table.add_column("#", width=3)
         table.add_column("Package", style="cyan")
         table.add_column("Name")
-        table.add_column("Safe to Disable")
+        table.add_column("Score", width=5)
+        table.add_column("Last Used")
+        table.add_column("Action")
 
-        for entry in found:
-            safe = "[green]Yes[/]" if entry.get("safe_to_disable", False) else "[red]No[/]"
-            table.add_row(entry["pkg"], entry.get("name", ""), safe)
+        for i, entry in enumerate(found, 1):
+            score = entry.get("bloatware_score", 0)
+            score_style = "green" if score < 40 else "yellow" if score < 70 else "red"
+
+            days = entry.get("days_since_use", 9999)
+            last_used = "Never" if entry.get("never_opened") else f"{days}d ago" if days < 9999 else "Unknown"
+
+            action = "Safe to disable" if score >= 60 and entry.get("safe_to_disable") else "Review" if score >= 40 else "Keep"
+            action_style = "green" if "Safe" in action else "yellow" if "Review" in action else "dim"
+
+            table.add_row(
+                str(i), entry["pkg"], entry.get("name", ""),
+                f"[{score_style}]{score}[/]", last_used, f"[{action_style}]{action}[/]",
+            )
 
         console.print(table)
 
