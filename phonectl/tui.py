@@ -101,13 +101,15 @@ def _main_menu() -> Panel:
     items = [
         ("1", "Device Info — Show connected device details"),
         ("2", "Security Audit — Warranty check, stalkerware scan, permissions audit"),
-        ("3", "Flash GSI — Download and flash a Generic System Image"),
-        ("4", "Update — Update security patch without data loss"),
-        ("5", "Backup — Backup boot partition images"),
-        ("6", "Restore — Restore boot partitions from backup"),
-        ("7", "Recover — Emergency recovery from boot loop"),
-        ("8", "Firmware — List available GSI versions"),
-        ("9", "Regions — Show firmware regions for a device"),
+        ("3", "Security Guard — Network, lockscreen, app security + score"),
+        ("4", "Performance Tune — Apply speed/battery/gaming profiles"),
+        ("5", "Storage — Analyze storage, cleanup caches, manage bloatware"),
+        ("6", "Flash GSI — Download and flash a Generic System Image"),
+        ("7", "Update — Update security patch without data loss"),
+        ("8", "Backup / Restore — Manage boot partition backups"),
+        ("9", "Recover — Emergency recovery from boot loop"),
+        ("r", "Reset — Factory reset, wipe data, or clear caches"),
+        ("f", "Firmware — List GSI versions or firmware regions"),
         ("0", "Exit"),
     ]
 
@@ -271,6 +273,143 @@ def _handle_audit(dm: DeviceManager) -> None:
     display_audit_report(report)
 
 
+def _handle_security(dm: DeviceManager) -> None:
+    from phonectl.core.security import SecurityGuard, display_security_report
+
+    info = dm.detect()
+    if info.state == DeviceState.DISCONNECTED:
+        console.print("[red]No device connected.[/]")
+        return
+    adb = dm.get_adb()
+    if not adb:
+        return
+
+    guard = SecurityGuard(adb)
+    report = guard.run_all()
+    display_security_report(report)
+
+    if report.fixable_checks:
+        fix = Prompt.ask("Apply security fixes?", choices=["y", "n"], default="n")
+        if fix == "y":
+            guard.harden()
+
+
+def _handle_tune(dm: DeviceManager) -> None:
+    from phonectl.core.tune import TuneEngine
+
+    info = dm.detect()
+    if info.state == DeviceState.DISCONNECTED:
+        console.print("[red]No device connected.[/]")
+        return
+    adb = dm.get_adb()
+    if not adb:
+        return
+
+    engine = TuneEngine(adb)
+    engine.show_status()
+
+    choice = Prompt.ask(
+        "\nApply profile?",
+        choices=["fast", "balanced", "battery", "gaming", "compile", "reset", "skip"],
+        default="skip",
+    )
+    if choice == "skip":
+        return
+    elif choice == "compile":
+        engine.compile_apps()
+    elif choice == "reset":
+        engine.reset_to_defaults()
+    else:
+        engine.apply_profile(choice)
+
+
+def _handle_storage(dm: DeviceManager) -> None:
+    from phonectl.core.storage import StorageAnalyzer
+
+    info = dm.detect()
+    if info.state == DeviceState.DISCONNECTED:
+        console.print("[red]No device connected.[/]")
+        return
+    adb = dm.get_adb()
+    if not adb:
+        return
+
+    analyzer = StorageAnalyzer(adb)
+    analyzer.show_storage()
+
+    console.print("\n[bold]Options:[/]")
+    console.print("  [1] Safe cleanup (caches, temps, APKs)")
+    console.print("  [2] Deep cleanup")
+    console.print("  [3] List bloatware")
+    console.print("  [4] Disable bloatware")
+    console.print("  [5] Re-enable disabled apps")
+    console.print("  [6] List user apps")
+    console.print("  [0] Back")
+
+    choice = Prompt.ask("Choice", default="0")
+    if choice == "1":
+        results = analyzer.cleanup_safe()
+        for a in results["actions"]:
+            console.print(f"  {a}")
+    elif choice == "2":
+        results = analyzer.cleanup_deep()
+        for a in results["actions"]:
+            console.print(f"  {a}")
+    elif choice == "3":
+        analyzer.show_bloatware(info.manufacturer.lower())
+    elif choice == "4":
+        analyzer.disable_bloatware(info.manufacturer.lower())
+    elif choice == "5":
+        analyzer.enable_disabled()
+    elif choice == "6":
+        analyzer.list_apps_by_size()
+
+
+def _handle_reset_menu(dm: DeviceManager) -> None:
+    from phonectl.core.reset import ResetManager
+
+    info = dm.detect()
+    adb = dm.get_adb()
+    fb = dm.get_fastboot()
+    manager = ResetManager(adb=adb, fastboot=fb)
+    manager.show_options()
+
+    choice = Prompt.ask("Choose option", choices=["factory", "wipe-data", "clear-cache", "app", "cancel"], default="cancel")
+    if choice == "factory":
+        manager.factory_reset()
+    elif choice == "wipe-data":
+        manager.wipe_data()
+    elif choice == "clear-cache":
+        manager.clear_all_caches()
+    elif choice == "app":
+        pkg = Prompt.ask("Package name")
+        if pkg:
+            manager.clear_app_data(pkg)
+
+
+def _handle_backup_menu(dm: DeviceManager) -> None:
+    from phonectl.core.backup import BackupManager
+    bm = BackupManager()
+
+    console.print("\n[bold]Backup Options:[/]")
+    console.print("  [1] Create backup from firmware directory")
+    console.print("  [2] List existing backups")
+    console.print("  [3] Back")
+    choice = Prompt.ask("Choice", choices=["1", "2", "3"], default="2")
+
+    if choice == "2":
+        bm.show_backups()
+    elif choice == "1":
+        info = dm.detect()
+        codename = info.codename if info.state != DeviceState.DISCONNECTED else "unknown"
+        codename = Prompt.ask("Device codename", default=codename)
+        from_dir = Prompt.ask("Path to firmware directory")
+        try:
+            bm.backup_from_firmware(codename, from_dir)
+        except Exception as exc:
+            console.print(f"[red]Failed: {exc}[/]")
+
+
 def run_tui() -> None:
     """Main TUI entry point — interactive menu loop."""
     dm = _create_dm()
@@ -283,13 +422,15 @@ def run_tui() -> None:
     handlers = {
         "1": lambda: _handle_info(dm),
         "2": lambda: _handle_audit(dm),
-        "3": lambda: _handle_flash_gsi(dm),
-        "4": lambda: _handle_update(dm),
-        "5": lambda: _handle_backup(dm),
-        "6": lambda: _handle_restore(dm),
-        "7": lambda: _handle_recover(dm),
-        "8": _handle_firmware,
-        "9": _handle_regions,
+        "3": lambda: _handle_security(dm),
+        "4": lambda: _handle_tune(dm),
+        "5": lambda: _handle_storage(dm),
+        "6": lambda: _handle_flash_gsi(dm),
+        "7": lambda: _handle_update(dm),
+        "8": lambda: _handle_backup_menu(dm),
+        "9": lambda: _handle_recover(dm),
+        "r": lambda: _handle_reset_menu(dm),
+        "f": _handle_firmware,
     }
 
     while True:

@@ -1,0 +1,35 @@
+# Performance tuning profiles for phonectl tune.
+# Each profile sets animation scales, GPU rendering, and background process behavior.
+
+profiles:
+  fast:
+    window_animation_scale: "0"
+    transition_animation_scale: "0"
+    animator_duration_scale: "0"
+    force_gpu_rendering: "1"
+    always_finish_activities: "0"
+    description: "Maximum speed — animations off, GPU forced. Best for older/slow phones."
+
+  balanced:
+    window_animation_scale: "0.5"
+    transition_animation_scale: "0.5"
+    animator_duration_scale: "0.5"
+    force_gpu_rendering: "0"
+    always_finish_activities: "0"
+    description: "Balanced — reduced animations, auto GPU. Good for daily use."
+
+  battery:
+    window_animation_scale: "0.5"
+    transition_animation_scale: "0.5"
+    animator_duration_scale: "0.5"
+    force_gpu_rendering: "0"
+    always_finish_activities: "1"
+    description: "Battery saver — reduced animations, aggressive background cleanup."
+
+  gaming:
+    window_animation_scale: "0"
+    transition_animation_scale: "0"
+    animator_duration_scale: "0"
+    force_gpu_rendering: "1"
+    always_finish_activities: "1"
+    description: "Gaming — animations off, GPU forced, background apps killed."

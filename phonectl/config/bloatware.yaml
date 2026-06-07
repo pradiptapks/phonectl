@@ -1,0 +1,146 @@
+# Known bloatware per vendor.
+# safe_to_disable: true means the app can be disabled without breaking the phone.
+# Only apps marked safe_to_disable will be touched by phonectl storage bloatware --disable.
+
+common:
+  - pkg: com.facebook.appmanager
+    name: Facebook App Manager
+    safe_to_disable: true
+  - pkg: com.facebook.system
+    name: Facebook System Services
+    safe_to_disable: true
+  - pkg: com.facebook.services
+    name: Facebook Services
+    safe_to_disable: true
+  - pkg: com.facebook.katana
+    name: Facebook (preinstalled)
+    safe_to_disable: true
+  - pkg: com.linkedin.android
+    name: LinkedIn (preinstalled)
+    safe_to_disable: true
+  - pkg: com.netflix.partner.activation
+    name: Netflix Activation
+    safe_to_disable: true
+  - pkg: com.spotify.music
+    name: Spotify (preinstalled)
+    safe_to_disable: true
+  - pkg: com.booking.app
+    name: Booking.com (preinstalled)
+    safe_to_disable: true
+
+motorola:
+  - pkg: com.motorola.timeweatherwidget
+    name: Moto Widget
+    safe_to_disable: true
+  - pkg: com.motorola.help
+    name: Moto Help
+    safe_to_disable: true
+  - pkg: com.motorola.demo
+    name: Moto Demo Mode
+    safe_to_disable: true
+  - pkg: com.motorola.ccc.mainplm
+    name: Moto App Launcher
+    safe_to_disable: true
+  - pkg: com.motorola.genie
+    name: Moto Genie
+    safe_to_disable: true
+  - pkg: com.motorola.motocare
+    name: Moto Care
+    safe_to_disable: true
+
+samsung:
+  - pkg: com.samsung.android.game.gamehome
+    name: Game Launcher
+    safe_to_disable: true
+  - pkg: com.samsung.android.game.gametools
+    name: Game Tools
+    safe_to_disable: true
+  - pkg: com.samsung.android.bixby.agent
+    name: Bixby Voice
+    safe_to_disable: true
+  - pkg: com.samsung.android.bixby.service
+    name: Bixby Service
+    safe_to_disable: true
+  - pkg: com.samsung.android.visionintelligence
+    name: Bixby Vision
+    safe_to_disable: true
+  - pkg: com.samsung.android.app.spage
+    name: Samsung Free
+    safe_to_disable: true
+  - pkg: com.samsung.android.ardrawing
+    name: AR Doodle
+    safe_to_disable: true
+  - pkg: com.samsung.android.aremoji
+    name: AR Emoji
+    safe_to_disable: true
+  - pkg: com.samsung.android.app.tips
+    name: Samsung Tips
+    safe_to_disable: true
+  - pkg: com.samsung.android.mateagent
+    name: Samsung Members
+    safe_to_disable: true
+  - pkg: com.samsung.android.app.galaxyfinder
+    name: Galaxy Finder
+    safe_to_disable: true
+
+google:
+  - pkg: com.google.android.apps.magazines
+    name: Google News
+    safe_to_disable: true
+  - pkg: com.google.android.videos
+    name: Google TV
+    safe_to_disable: true
+  - pkg: com.google.android.music
+    name: Google Play Music
+    safe_to_disable: true
+  - pkg: com.google.android.apps.tachyon
+    name: Google Duo/Meet
+    safe_to_disable: true
+  - pkg: com.google.android.youtube
+    name: YouTube (preinstalled)
+    safe_to_disable: true
+
+nokia:
+  - pkg: com.hmdglobal.support
+    name: Nokia Support
+    safe_to_disable: true
+  - pkg: com.hmdglobal.app.cameralite
+    name: Nokia Camera Lite
+    safe_to_disable: true
+
+xiaomi:
+  - pkg: com.miui.analytics
+    name: MIUI Analytics
+    safe_to_disable: true
+  - pkg: com.miui.msa.global
+    name: MIUI Ad Services
+    safe_to_disable: true
+  - pkg: com.miui.cloudservice
+    name: Mi Cloud
+    safe_to_disable: true
+  - pkg: com.miui.yellowpage
+    name: Mi Yellow Pages
+    safe_to_disable: true
+  - pkg: com.miui.bugreport
+    name: Bug Report
+    safe_to_disable: true
+  - pkg: com.xiaomi.glgm
+    name: Xiaomi Games
+    safe_to_disable: true
+  - pkg: com.miui.player
+    name: Mi Music
+    safe_to_disable: true
+  - pkg: com.miui.videoplayer
+    name: Mi Video
+    safe_to_disable: true
+
+oneplus:
+  - pkg: com.oneplus.gamespace
+    name: Game Space
+    safe_to_disable: true
+  - pkg: com.oneplus.membership
+    name: OnePlus Community
+    safe_to_disable: true
+  - pkg: com.oneplus.store
+    name: OnePlus Store
+    safe_to_disable: true

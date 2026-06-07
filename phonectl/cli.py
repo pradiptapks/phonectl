@@ -674,6 +674,236 @@ def firmware_regions(codename: str):
 
 
 # ═══════════════════════════════════════════════════════════════
+# phonectl tune
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+@click.option("--profile", type=click.Choice(["fast", "balanced", "battery", "gaming"]),
+              help="Apply a performance profile")
+@click.option("--compile", "do_compile", is_flag=True, help="Force ART compilation for faster app launches")
+@click.option("--reset", "do_reset", is_flag=True, help="Reset tuning to defaults")
+def tune(profile: str | None, do_compile: bool, do_reset: bool):
+    """Performance tuning — apply speed/battery/gaming profiles."""
+    from phonectl.core.tune import TuneEngine
+
+    dm = _create_device_manager()
+    device_info = _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        console.print("[red]ADB connection required.[/]")
+        raise SystemExit(1)
+
+    engine = TuneEngine(adb)
+
+    if do_reset:
+        engine.reset_to_defaults()
+    elif do_compile:
+        engine.compile_apps()
+    elif profile:
+        engine.apply_profile(profile)
+    else:
+        engine.show_status()
+
+
+# ═══════════════════════════════════════════════════════════════
+# phonectl reset
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command(name="reset")
+@click.option("--factory", "do_factory", is_flag=True, help="Full factory reset via recovery")
+@click.option("--wipe-data", "do_wipe", is_flag=True, help="Wipe userdata via fastboot")
+@click.option("--clear-cache", "do_cache", is_flag=True, help="Clear all app caches (safe)")
+@click.option("--app", "app_pkg", help="Clear data for a specific app package")
+def reset_cmd(do_factory: bool, do_wipe: bool, do_cache: bool, app_pkg: str | None):
+    """Factory reset and data management."""
+    from phonectl.core.reset import ResetManager
+
+    dm = _create_device_manager()
+    adb = dm.get_adb()
+    fb = dm.get_fastboot()
+    manager = ResetManager(adb=adb, fastboot=fb)
+
+    if do_factory:
+        manager.factory_reset()
+    elif do_wipe:
+        manager.wipe_data()
+    elif do_cache:
+        manager.clear_all_caches()
+    elif app_pkg:
+        manager.clear_app_data(app_pkg)
+    else:
+        manager.show_options()
+
+
+# ═══════════════════════════════════════════════════════════════
+# phonectl storage
+# ═══════════════════════════════════════════════════════════════
+
+@cli.group()
+def storage():
+    """Storage analysis, cleanup, and bloatware management."""
+
+
+@storage.command("show")
+def storage_show():
+    """Show storage breakdown."""
+    from phonectl.core.storage import StorageAnalyzer
+
+    dm = _create_device_manager()
+    _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        raise SystemExit(1)
+    StorageAnalyzer(adb).show_storage()
+
+
+@storage.command("cleanup")
+@click.option("--deep", is_flag=True, help="Deep cleanup (includes browser data, logs)")
+@click.option("--dry-run", is_flag=True, help="Preview without acting")
+def storage_cleanup(deep: bool, dry_run: bool):
+    """Clean up caches, temp files, and leftover APKs."""
+    from phonectl.core.storage import StorageAnalyzer
+
+    dm = _create_device_manager()
+    _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        raise SystemExit(1)
+
+    analyzer = StorageAnalyzer(adb)
+    if dry_run:
+        console.print("[bold]Dry run — no changes will be made:[/]\n")
+
+    if deep:
+        results = analyzer.cleanup_deep(dry_run=dry_run)
+    else:
+        results = analyzer.cleanup_safe(dry_run=dry_run)
+
+    for action in results["actions"]:
+        console.print(f"  {action}")
+
+    if not dry_run:
+        console.print(f"\n[green]Cleanup complete.[/]")
+
+
+@storage.group()
+def bloatware():
+    """Detect and manage pre-installed bloatware."""
+
+
+@bloatware.command("list")
+@click.option("--vendor", default="", help="Filter by vendor (motorola, samsung, etc.)")
+def bloatware_list(vendor: str):
+    """List detected bloatware apps."""
+    from phonectl.core.storage import StorageAnalyzer
+
+    dm = _create_device_manager()
+    info = _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        raise SystemExit(1)
+    v = vendor or info.manufacturer.lower()
+    StorageAnalyzer(adb).show_bloatware(v)
+
+
+@bloatware.command("disable")
+@click.option("--vendor", default="", help="Filter by vendor")
+@click.option("--dry-run", is_flag=True, help="Preview without disabling")
+def bloatware_disable(vendor: str, dry_run: bool):
+    """Disable detected bloatware (SafetyGuard protected)."""
+    from phonectl.core.storage import StorageAnalyzer
+
+    dm = _create_device_manager()
+    info = _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        raise SystemExit(1)
+
+    guard = SafetyGuard()
+    if not dry_run:
+        if not guard.confirm_destructive("Disable bloatware apps? They can be re-enabled later."):
+            return
+
+    v = vendor or info.manufacturer.lower()
+    StorageAnalyzer(adb).disable_bloatware(v, dry_run=dry_run)
+
+
+@bloatware.command("enable")
+def bloatware_enable():
+    """Re-enable previously disabled bloatware."""
+    from phonectl.core.storage import StorageAnalyzer
+
+    dm = _create_device_manager()
+    _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        raise SystemExit(1)
+    StorageAnalyzer(adb).enable_disabled()
+
+
+@storage.command("apps")
+def storage_apps():
+    """List installed user apps."""
+    from phonectl.core.storage import StorageAnalyzer
+
+    dm = _create_device_manager()
+    _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        raise SystemExit(1)
+    StorageAnalyzer(adb).list_apps_by_size()
+
+
+# ═══════════════════════════════════════════════════════════════
+# phonectl security
+# ═══════════════════════════════════════════════════════════════
+
+@cli.command()
+@click.option("--network", "cat_network", is_flag=True, help="Network security checks only")
+@click.option("--lockscreen", "cat_lock", is_flag=True, help="Lock screen checks only")
+@click.option("--apps", "cat_apps", is_flag=True, help="App security checks only")
+@click.option("--score", "show_score", is_flag=True, help="Output security score only (0-100)")
+@click.option("--harden", is_flag=True, help="Apply recommended security fixes")
+@click.option("--dry-run", is_flag=True, help="Preview hardening without applying")
+def security(cat_network: bool, cat_lock: bool, cat_apps: bool,
+             show_score: bool, harden: bool, dry_run: bool):
+    """Network and phone security assessment with optional hardening."""
+    from phonectl.core.security import SecurityGuard, display_security_report
+
+    dm = _create_device_manager()
+    _detect_device(dm)
+    adb = dm.get_adb()
+    if not adb:
+        console.print("[red]ADB connection required.[/]")
+        raise SystemExit(1)
+
+    guard = SecurityGuard(adb)
+
+    if harden:
+        console.print("[bold]Security Hardening:[/]\n")
+        guard.harden(dry_run=dry_run)
+        return
+
+    categories = None
+    if cat_network or cat_lock or cat_apps:
+        categories = []
+        if cat_network:
+            categories.append("network")
+        if cat_lock:
+            categories.append("lockscreen")
+        if cat_apps:
+            categories.append("apps")
+
+    report = guard.run_all(categories=categories)
+
+    if show_score:
+        click.echo(report.score)
+        return
+
+    display_security_report(report)
+
+
+# ═══════════════════════════════════════════════════════════════
 # phonectl tui (launches interactive mode)
 # ═══════════════════════════════════════════════════════════════
 

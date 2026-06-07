@@ -137,6 +137,38 @@ phonectl flash gsi --version BP2A.250605.031.A3
 # Update security patch without data loss
 phonectl update
 
+# Performance tuning — show current settings
+phonectl tune
+
+# Apply a performance profile
+phonectl tune --profile fast           # Speed: animations off, GPU forced
+phonectl tune --profile battery        # Battery: reduced animations, background cleanup
+phonectl tune --profile gaming         # Gaming: max performance, kill background apps
+phonectl tune --reset                  # Restore original settings
+phonectl tune --compile                # Force ART compilation for faster app launches
+
+# Security assessment — network, lockscreen, app security with scoring
+phonectl security                      # Full security report (23 checks)
+phonectl security --score              # Output score only (0-100)
+phonectl security --network            # Network checks only
+phonectl security --harden             # Auto-fix security issues
+phonectl security --harden --dry-run   # Preview fixes without applying
+
+# Storage management
+phonectl storage show                  # Storage breakdown
+phonectl storage cleanup               # Safe cleanup (caches, temps, APKs)
+phonectl storage cleanup --deep        # Deep cleanup
+phonectl storage cleanup --dry-run     # Preview cleanup without acting
+phonectl storage bloatware list        # List detected bloatware
+phonectl storage bloatware disable     # Disable bloatware (SafetyGuard protected)
+phonectl storage bloatware enable      # Re-enable disabled apps
+phonectl storage apps                  # List installed user apps
+
+# Factory reset and data management
+phonectl reset --clear-cache           # Clear all app caches (safe)
+phonectl reset --factory               # Full factory reset (double confirmation)
+phonectl reset --app com.example.app   # Clear data for a specific app
+
 # Recover a bricked phone from backup
 phonectl recover --codename corfur
 
@@ -162,6 +194,35 @@ phonectl tui
 | `phonectl audit --deep` | Include root-level deep scan (hosts file, system integrity, hidden processes) |
 | `phonectl audit --export md` | Export audit report as markdown file |
 | `phonectl audit --export json` | Export audit report as JSON for automation |
+| **Performance** | |
+| `phonectl tune` | Show current performance settings and available profiles |
+| `phonectl tune --profile <name>` | Apply profile: `fast`, `balanced`, `battery`, `gaming` |
+| `phonectl tune --compile` | Force ART compilation for faster app launches |
+| `phonectl tune --reset` | Restore original performance settings |
+| **Security** | |
+| `phonectl security` | Full security assessment (network, lockscreen, apps — 23 checks) |
+| `phonectl security --score` | Output security score only (0-100) for automation |
+| `phonectl security --network` | Network security checks only |
+| `phonectl security --lockscreen` | Lock screen and auth checks only |
+| `phonectl security --apps` | App permission security only |
+| `phonectl security --harden` | Auto-fix failed security checks |
+| `phonectl security --harden --dry-run` | Preview security fixes without applying |
+| **Storage** | |
+| `phonectl storage show` | Show storage breakdown (total, used, free, app counts) |
+| `phonectl storage cleanup` | Safe cleanup — clear caches, temps, leftover APKs |
+| `phonectl storage cleanup --deep` | Deep cleanup including logs |
+| `phonectl storage cleanup --dry-run` | Preview cleanup without acting |
+| `phonectl storage bloatware list` | List detected bloatware for current vendor |
+| `phonectl storage bloatware disable` | Disable bloatware (SafetyGuard protected) |
+| `phonectl storage bloatware enable` | Re-enable previously disabled bloatware |
+| `phonectl storage apps` | List installed user apps |
+| **Reset** | |
+| `phonectl reset` | Show available reset options |
+| `phonectl reset --factory` | Full factory reset via recovery (double confirmation) |
+| `phonectl reset --wipe-data` | Wipe userdata partition via fastboot |
+| `phonectl reset --clear-cache` | Clear all app caches (safe, no data loss) |
+| `phonectl reset --app <package>` | Clear data for a specific app |
+| **Flash & Recovery** | |
 | `phonectl backup create` | Create a backup of boot partition images |
 | `phonectl backup list` | List all saved backups |
 | `phonectl backup restore <path>` | Restore boot partitions from a backup |
@@ -320,6 +381,74 @@ The tool includes a database of ~150 known stalkerware, spyware, RAT, keylogger,
 | HIGH | 6-9 warnings or critical failures |
 | CRITICAL | 10+ warnings or multiple critical failures |
 
+## Performance Tuning
+
+`phonectl tune` optimizes phone performance by adjusting Android system settings via ADB. No root required.
+
+### Performance Profiles
+
+| Profile | Animations | GPU | Background | Best For |
+|---------|-----------|-----|------------|----------|
+| fast | Off (0x) | Forced | Normal | Older/slow phones |
+| balanced | Reduced (0.5x) | Auto | Normal | Daily use |
+| battery | Reduced (0.5x) | Auto | Aggressive cleanup | Maximum battery life |
+| gaming | Off (0x) | Forced | Kill background | Gaming sessions |
+
+Settings are backed up before changes and can be restored with `phonectl tune --reset`. The `--compile` flag forces ART ahead-of-time compilation for ~20% faster app launches.
+
+## Storage Management
+
+`phonectl storage` analyzes disk usage and provides 3-tier cleanup with SafetyGuard protection.
+
+### Cleanup Tiers
+
+| Tier | Risk | What It Cleans |
+|------|------|---------------|
+| Safe (default) | Zero | App caches, thumbnails, temp files, leftover APKs, empty directories |
+| Deep (`--deep`) | Low | Everything above + system logs |
+| Bloatware (`bloatware disable`) | Moderate | Disables pre-installed OEM apps (reversible with `bloatware enable`) |
+
+### Bloatware Management
+
+The tool detects known bloatware per vendor (Motorola, Samsung, Google, Nokia, Xiaomi, OnePlus) from `config/bloatware.yaml`. SafetyGuard prevents disabling critical system apps listed in `config/protected_apps.yaml`. An undo log at `~/.phonectl/disabled_apps.json` tracks all changes for easy rollback.
+
+## Security Guard
+
+`phonectl security` performs a 23-check security assessment across 3 categories and produces a score (0-100).
+
+### Check Categories
+
+| Category | Checks | What It Covers |
+|----------|--------|---------------|
+| Network (10) | VPN, proxy, DNS, Bluetooth, hotspot, NFC, captive portal, CA certs, ADB exposure |
+| Lock Screen (6) | Lock type, timeout, biometrics, Smart Lock, OEM unlock, location |
+| App Security (7) | App verification, unknown sources, overlay, notification listeners, SMS access, Find My Device |
+
+### Security Score
+
+| Range | Rating | Meaning |
+|-------|--------|---------|
+| 90-100 | EXCELLENT | All protections active |
+| 70-89 | GOOD | Minor gaps |
+| 50-69 | FAIR | Several issues |
+| 30-49 | POOR | Multiple critical issues |
+| 0-29 | CRITICAL | Seriously compromised |
+
+### Auto-Hardening
+
+`phonectl security --harden` can automatically fix failed checks (use `--dry-run` to preview):
+- Disable ADB over WiFi
+- Enable captive portal detection
+- Reduce lock timeout to 30 seconds
+- Enable app verification for sideloaded APKs
+- Disable unknown sources
+
+Original settings are backed up to `~/.phonectl/security_backup.json`.
+
+## Factory Reset
+
+`phonectl reset` provides safe reset operations with double confirmation for destructive actions, Google FRP warnings, and encryption data-loss notices. Cache clearing (`--clear-cache`) is always safe with no confirmation needed.
+
 ## Project Structure
 
 ```
@@ -335,7 +464,11 @@ phonectl/
 │   ├── safety.py            # Pre-flash safety checks and validation
 │   ├── backup.py            # Backup/restore boot partitions
 │   ├── audit.py             # Security scanner + warranty estimator
-│   └── stalkerware.py       # Stalkerware detection engine
+│   ├── stalkerware.py       # Stalkerware detection engine
+│   ├── tune.py              # Performance tuning profiles
+│   ├── reset.py             # Factory reset and data management
+│   ├── storage.py           # Storage analysis, cleanup, bloatware
+│   └── security.py          # Network/phone security + hardening
 ├── vendors/
 │   ├── base.py              # BaseVendorPlugin abstract class
 │   ├── motorola.py          # Motorola reference plugin
@@ -349,7 +482,10 @@ phonectl/
     ├── vendors.yaml          # Vendor detection rules (USB IDs, properties)
     ├── gsi_versions.yaml     # GSI compatibility matrix
     ├── warranty.yaml         # OEM warranty periods and support timelines
-    └── stalkerware.yaml      # Known stalkerware/spyware package database
+    ├── stalkerware.yaml      # Known stalkerware/spyware package database
+    ├── profiles.yaml         # Performance tuning profiles
+    ├── bloatware.yaml        # Known bloatware per vendor
+    └── protected_apps.yaml   # Apps that must NEVER be disabled
 ```
 
 ## Contributing
