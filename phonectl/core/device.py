@@ -41,6 +41,7 @@ class DeviceInfo:
     treble_enabled: bool = False
     dynamic_partitions: bool = False
     vndk_version: str = ""
+    vndk_lite: bool = False
     verified_boot_state: str = ""
     # Hardware
     cpu_abi: str = ""
@@ -206,6 +207,23 @@ class DeviceManager:
         try:
             info.is_unlocked = info.verified_boot_state == "orange"
         except (ADBError, AttributeError):
+            pass
+
+        # VNDK namespace isolation (Google Flash Tool cross-version gate)
+        try:
+            ld_config = adb.shell("cat /system/etc/ld.config*.txt 2>/dev/null")
+            in_vendor = False
+            for line in ld_config.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("["):
+                    in_vendor = stripped == "[vendor]"
+                    continue
+                if in_vendor and "namespace.default.isolated" in stripped:
+                    _, _, value = stripped.partition("=")
+                    info.vndk_lite = value.strip().lower() != "true"
+                    break
+            info.extra["vndk_lite"] = info.vndk_lite
+        except (ADBError, Exception):
             pass
 
         # Codename fallback: try alternative properties if primary is empty

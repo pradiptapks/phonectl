@@ -350,7 +350,10 @@ class StorageAnalyzer:
     def disable_bloatware(self, vendor: str = "", dry_run: bool = False) -> list[str]:
         """Disable detected bloatware with SafetyGuard protection."""
         found = self.list_bloatware(vendor)
-        safe_to_disable = [e for e in found if e.get("safe_to_disable", False)]
+        safe_to_disable = [
+            e for e in found
+            if e.get("safe_to_disable", False) and e.get("bloatware_score", 0) >= 60
+        ]
 
         if not safe_to_disable:
             console.print("[green]No safely-disablable bloatware found.[/]")
@@ -425,7 +428,7 @@ class StorageAnalyzer:
         return enabled
 
     def list_apps_by_size(self) -> None:
-        """List installed apps sorted by estimated size."""
+        """List installed user apps sorted by size (largest first)."""
         try:
             output = self.adb.shell("pm list packages -3")
             packages = [
@@ -436,11 +439,40 @@ class StorageAnalyzer:
             console.print("[red]Cannot list packages.[/]")
             return
 
-        table = Table(title=f"User Apps ({len(packages)})")
+        import re
+        app_sizes: list[tuple[str, float]] = []
+        for pkg in packages:
+            size_kb = 0.0
+            try:
+                dumpsys = self.adb.shell(f"dumpsys package {pkg} | grep -i 'codePath\\|dataDir'")
+                code_path = ""
+                for line in dumpsys.splitlines():
+                    if "codePath" in line:
+                        code_path = line.split("=", 1)[-1].strip()
+                        break
+                if code_path:
+                    du_out = self.adb.shell(f"du -sk {code_path} 2>/dev/null").strip()
+                    match = re.match(r"(\d+)", du_out)
+                    if match:
+                        size_kb = float(match.group(1))
+            except Exception:
+                pass
+            app_sizes.append((pkg, size_kb))
+
+        app_sizes.sort(key=lambda x: x[1], reverse=True)
+
+        table = Table(title=f"User Apps by Size ({len(app_sizes)})")
         table.add_column("#", width=4)
         table.add_column("Package", style="cyan")
+        table.add_column("Size", justify="right", width=10)
 
-        for i, pkg in enumerate(sorted(packages), 1):
-            table.add_row(str(i), pkg)
+        for i, (pkg, size_kb) in enumerate(app_sizes, 1):
+            if size_kb >= 1024:
+                size_str = f"{size_kb / 1024:.1f} MB"
+            elif size_kb > 0:
+                size_str = f"{size_kb:.0f} KB"
+            else:
+                size_str = "N/A"
+            table.add_row(str(i), pkg, size_str)
 
         console.print(table)

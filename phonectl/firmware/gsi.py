@@ -27,7 +27,19 @@ class GSIVersion:
 
 
 def load_gsi_versions(config_path: str | Path | None = None) -> list[GSIVersion]:
-    """Load known GSI versions from the YAML config."""
+    """Load known GSI versions, merging static config with dynamic cache."""
+    static = _load_static_versions(config_path)
+
+    from phonectl.firmware.compat_fetcher import CompatFetcher
+    cached = CompatFetcher().load_cached()
+    if not cached:
+        return static
+
+    return _merge_versions(static, cached)
+
+
+def _load_static_versions(config_path: str | Path | None = None) -> list[GSIVersion]:
+    """Load GSI versions from the bundled YAML config."""
     if config_path is None:
         config_path = Path(__file__).parent.parent / "config" / "gsi_versions.yaml"
 
@@ -42,6 +54,50 @@ def load_gsi_versions(config_path: str | Path | None = None) -> list[GSIVersion]
     for v in data.get("versions", []):
         versions.append(GSIVersion(**v))
     return versions
+
+
+def _merge_versions(
+    static: list[GSIVersion],
+    dynamic: list[dict],
+) -> list[GSIVersion]:
+    """Merge dynamic cache into static baseline.
+
+    Rules:
+    - Static entries with status "broken" keep that status
+    - Static entries with non-empty notes keep their notes
+    - Dynamic entries update download_url, sha256, security_patch
+    - New dynamic entries (unknown build_id) are appended
+    """
+    by_id = {v.build_id: v for v in static}
+    merged = list(static)
+
+    for d in dynamic:
+        build_id = d.get("build_id", "")
+        if not build_id:
+            continue
+
+        if build_id in by_id:
+            existing = by_id[build_id]
+            if d.get("download_url"):
+                existing.download_url = d["download_url"]
+            if d.get("sha256"):
+                existing.sha256 = d["sha256"]
+            if d.get("security_patch"):
+                existing.security_patch = d["security_patch"]
+            if existing.status != "broken" and d.get("status"):
+                existing.status = d["status"]
+        else:
+            try:
+                new_ver = GSIVersion(**{
+                    k: v for k, v in d.items()
+                    if k in GSIVersion.__dataclass_fields__
+                })
+                merged.append(new_ver)
+                by_id[build_id] = new_ver
+            except TypeError:
+                continue
+
+    return merged
 
 
 def _builtin_versions() -> list[GSIVersion]:
@@ -188,6 +244,25 @@ def evaluate_all_versions(
             score = 0
             results.append(GSIRecommendation(v, verdict, reasons, score))
             continue
+
+        # -- VNDKLite cross-version gate (Google Flash Tool alignment) --
+        if getattr(info, 'vndk_lite', False):
+            prefix = v.build_id[:4] if v.build_id else ""
+            gsi_req = GSI_ANDROID_REQUIREMENTS.get(prefix, {})
+            gsi_android = gsi_req.get("min_android", 0)
+            device_android = int(info.android_version) if info.android_version and info.android_version.isdigit() else 0
+            if gsi_android and device_android and gsi_android != device_android:
+                verdict = "incompatible"
+                reasons.append(
+                    f"VNDKLite device (non-isolated vendor namespace) — "
+                    f"can only flash same-version GSI "
+                    f"(device: Android {device_android}, GSI: Android {gsi_android})"
+                )
+                score = 0
+                results.append(GSIRecommendation(v, verdict, reasons, score))
+                continue
+            else:
+                reasons.append("VNDKLite device — same-version GSI match OK")
 
         # -- VNDK compatibility (critical) --
         prefix = v.build_id[:4] if v.build_id else ""

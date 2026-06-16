@@ -1,7 +1,7 @@
 # phonectl — Architecture Document
 
-**Version:** 0.1.0
-**Last Updated:** June 7, 2026
+**Version:** 0.2.0
+**Last Updated:** June 8, 2026
 
 ---
 
@@ -56,7 +56,8 @@ The tool communicates with Android devices over USB via `adb` and `fastboot` —
 │  ┌──▼──┐ │ ┌──▼──┐ │ ┌──▼──────────┐                            │
 │  │ ADB │ │ │ FB  │ │ │ VendorPlugin│  vendors/                  │
 │  │     │ │ │     │ │ │ (Motorola,  │                            │
-│  └─────┘ │ └─────┘ │ │  Pixel,     │                            │
+│  └─────┘ │ └─────┘ │ │  Nokia,     │                            │
+│          │         │ │  Pixel,     │                            │
 │          │         │ │  Samsung)   │                            │
 │          │         │ └─────────────┘                            │
 │  ┌───────▼──┐  ┌───▼──────┐                                     │
@@ -131,6 +132,7 @@ The tool communicates with Android devices over USB via `adb` and `fastboot` —
 |--------|--------|-------------|
 | `base.py` | Complete | Abstract base class — all vendors implement this |
 | `motorola.py` | Complete | Full flash sequences, lolinet firmware, USB quirks |
+| `nokia.py` | Complete | Full flash + update sequences, bootloader fastboot |
 | `google.py` | Stub | Detection only (with GSI false-positive fix) |
 | `samsung.py` | Stub | Detection only (notes Odin/Heimdall requirement) |
 
@@ -316,15 +318,16 @@ class BaseVendorPlugin(ABC):
 
 1. DeviceManager iterates registered plugins
 2. Each plugin's `detect()` is called with DeviceInfo
-3. First match wins — plugins are registered in order: Motorola, Google, Samsung
+3. First match wins — plugins are registered in order: Motorola, Google, Nokia, Samsung
 4. Motorola checks vendor fingerprint and codename (catches GSI-on-Motorola)
 5. Google checks vendor fingerprint to avoid false positives on GSI
+6. Nokia matches HMD Global manufacturer and known Nokia codenames
 
 ### Adding a New Vendor
 
 1. Create `phonectl/vendors/yourvendor.py` implementing `BaseVendorPlugin`
-2. Register in `cli.py` → `_create_device_manager()`
-3. Add detection rules to `config/vendors.yaml`
+2. Register in `phonectl/vendors/registry.py` → `create_device_manager()`
+3. Add detection rules to `config/vendors.yaml` (reference)
 4. Add bloatware entries to `config/bloatware.yaml` (optional)
 
 ---
@@ -359,6 +362,7 @@ class BaseVendorPlugin(ABC):
 | Vendor | Detection | Flash | Recovery | Firmware Download |
 |--------|-----------|-------|----------|-------------------|
 | Motorola | Full (codename + fingerprint) | Full | Full | Lolinet mirrors |
+| Nokia (HMD Global) | Full (manufacturer + codename) | Full | Full | Stub (nokia-updates.com) |
 | Google Pixel | Detection only | Not implemented | Not implemented | Stub |
 | Samsung | Detection only | Not implemented (needs Odin) | Not implemented | Stub |
 | OnePlus | Config only | Not implemented | Not implemented | Not started |
@@ -454,4 +458,4 @@ MCP server design (future): phonectl exposes device data as MCP resources (`phon
 
 ---
 
-*This document reflects the state of phonectl v0.1.0 as of June 7, 2026.*
+*This document reflects the state of phonectl v0.2.0 as of June 8, 2026.*

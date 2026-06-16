@@ -107,6 +107,18 @@ nokia:
   - pkg: com.hmdglobal.app.cameralite
     name: Nokia Camera Lite
     safe_to_disable: true
+  - pkg: com.hmdglobal.enterprise.client
+    name: Nokia Enterprise Client
+    safe_to_disable: true
+  - pkg: com.hmdglobal.app.devicelock
+    name: Nokia Device Lock
+    safe_to_disable: false
+  - pkg: com.evenwell.powersaving.g3
+    name: Power Saver (Evenwell)
+    safe_to_disable: true
+  - pkg: com.evenwell.emm
+    name: Evenwell EMM
+    safe_to_disable: true
 
 xiaomi:
   - pkg: com.miui.analytics

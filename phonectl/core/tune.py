@@ -26,41 +26,6 @@ SETTING_COMMANDS = {
     "always_finish_activities": ("settings get global always_finish_activities", "settings put global always_finish_activities {}"),
 }
 
-DEFAULT_PROFILES = {
-    "fast": {
-        "window_animation_scale": "0",
-        "transition_animation_scale": "0",
-        "animator_duration_scale": "0",
-        "force_gpu_rendering": "1",
-        "always_finish_activities": "0",
-        "description": "Maximum speed — animations off, GPU forced. Best for older/slow phones.",
-    },
-    "balanced": {
-        "window_animation_scale": "0.5",
-        "transition_animation_scale": "0.5",
-        "animator_duration_scale": "0.5",
-        "force_gpu_rendering": "0",
-        "always_finish_activities": "0",
-        "description": "Balanced — reduced animations, auto GPU. Good for daily use.",
-    },
-    "battery": {
-        "window_animation_scale": "0.5",
-        "transition_animation_scale": "0.5",
-        "animator_duration_scale": "0.5",
-        "force_gpu_rendering": "0",
-        "always_finish_activities": "1",
-        "description": "Battery saver — reduced animations, aggressive background cleanup.",
-    },
-    "gaming": {
-        "window_animation_scale": "0",
-        "transition_animation_scale": "0",
-        "animator_duration_scale": "0",
-        "force_gpu_rendering": "1",
-        "always_finish_activities": "1",
-        "description": "Gaming — animations off, GPU forced, background apps killed.",
-    },
-}
-
 ANDROID_DEFAULTS = {
     "window_animation_scale": "1.0",
     "transition_animation_scale": "1.0",
@@ -87,11 +52,17 @@ class TuneEngine:
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "profiles.yaml"
         path = Path(config_path)
-        if path.exists():
-            with open(path) as f:
-                data = yaml.safe_load(f) or {}
-            return data.get("profiles", DEFAULT_PROFILES)
-        return DEFAULT_PROFILES
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Profiles config not found: {path}. "
+                "Ensure phonectl is installed correctly with config/profiles.yaml."
+            )
+        with open(path) as f:
+            data = yaml.safe_load(f) or {}
+        profiles = data.get("profiles", {})
+        if not profiles:
+            raise ValueError(f"No profiles defined in {path}")
+        return profiles
 
     def get_current(self) -> TuneStatus:
         """Read current tuning values from device."""

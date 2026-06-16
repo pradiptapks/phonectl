@@ -50,6 +50,7 @@ class DeviceProfile:
     codename: str = ""
     android_version: str = ""
     vndk_version: str = ""
+    vndk_lite: bool = False
     treble_enabled: bool = False
     dynamic_partitions: bool = False
     cpu_abi: str = ""
@@ -124,6 +125,7 @@ class StateManager:
             codename=info.codename,
             android_version=info.android_version,
             vndk_version=info.vndk_version,
+            vndk_lite=info.vndk_lite,
             treble_enabled=info.treble_enabled,
             dynamic_partitions=info.dynamic_partitions,
             cpu_abi=info.cpu_abi,
@@ -163,6 +165,7 @@ class StateManager:
             "codename": "codename",
             "android_version": "android_version",
             "vndk_version": "vndk_version",
+            "vndk_lite": "vndk_lite",
             "treble_enabled": "treble_enabled",
             "dynamic_partitions": "dynamic_partitions",
             "cpu_abi": "cpu_abi",

@@ -3,20 +3,16 @@
 from __future__ import annotations
 
 from rich.console import Console
-from rich.layout import Layout
-from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich.prompt import Prompt, IntPrompt
+from rich.prompt import Prompt
 
 from phonectl.core.backup import BackupManager
 from phonectl.core.device import DeviceManager, DeviceState
 from phonectl.core.safety import SafetyGuard
 from phonectl.firmware.gsi import load_gsi_versions, show_gsi_versions
-from phonectl.vendors.google import GooglePixelPlugin
-from phonectl.vendors.motorola import MotorolaPlugin
-from phonectl.vendors.samsung import SamsungPlugin
+from phonectl.vendors.registry import create_device_manager
 
 console = Console()
 
@@ -38,11 +34,7 @@ WARRANTY_NOTICE = (
 
 
 def _create_dm() -> DeviceManager:
-    dm = DeviceManager()
-    dm.register_vendor(MotorolaPlugin())
-    dm.register_vendor(GooglePixelPlugin())
-    dm.register_vendor(SamsungPlugin())
-    return dm
+    return create_device_manager()
 
 
 def _device_status_panel(dm: DeviceManager) -> Panel:
@@ -108,6 +100,9 @@ def _main_menu() -> Panel:
         ("7", "Storage — Analyze storage, cleanup caches, manage bloatware"),
         ("8", "Flash GSI — Download and flash a Generic System Image"),
         ("9", "Backup / Restore — Manage boot partition backups"),
+        ("k", "Check — Hardware/firmware compatibility checks"),
+        ("m", "Recommend — GSI version recommendations"),
+        ("u", "Update — Update GSI without data wipe"),
         ("r", "Reset — Factory reset, wipe data, or clear caches"),
         ("c", "Recover — Emergency recovery from boot loop"),
         ("f", "Firmware — List GSI versions or firmware regions"),
@@ -142,7 +137,7 @@ def _handle_flash_gsi(dm: DeviceManager) -> None:
 
     no_wipe = Prompt.ask("Preserve user data? (no wipe)", choices=["y", "n"], default="n") == "y"
 
-    from phonectl.cli import flash_gsi
+    from phonectl.commands.flash import flash_gsi
     import click
     ctx = click.Context(flash_gsi)
     ctx.ensure_object(dict)
@@ -159,7 +154,7 @@ def _handle_update(dm: DeviceManager) -> None:
     show_gsi_versions()
     build_id = Prompt.ask("Build ID to update to", default="")
 
-    from phonectl.cli import flash_gsi
+    from phonectl.commands.flash import flash_gsi
     import click
     ctx = click.Context(flash_gsi)
     with ctx:
@@ -197,7 +192,7 @@ def _handle_restore(dm: DeviceManager) -> None:
     if not backup_path:
         return
 
-    from phonectl.cli import backup_restore
+    from phonectl.commands.backup_cmds import backup_restore
     import click
     ctx = click.Context(backup_restore)
     with ctx:
@@ -218,7 +213,7 @@ def _handle_recover(dm: DeviceManager) -> None:
             console.print(f"[bold]Found backup for {codename}:[/] {latest}")
             use_latest = Prompt.ask("Use this backup?", choices=["y", "n"], default="y")
             if use_latest == "y":
-                from phonectl.cli import recover
+                from phonectl.commands.flash import recover
                 import click
                 ctx = click.Context(recover)
                 with ctx:
@@ -229,15 +224,42 @@ def _handle_recover(dm: DeviceManager) -> None:
     bm.show_backups()
     backup_path = Prompt.ask("Enter backup path (or leave empty to cancel)", default="")
     if backup_path:
-        from phonectl.cli import recover
+        from phonectl.commands.flash import recover
         import click
         ctx = click.Context(recover)
         with ctx:
             recover.invoke(ctx, backup_path=backup_path, codename=codename)
 
 
+def _handle_check(dm: DeviceManager) -> None:
+    """Run compatibility checks and show GSI recommendations."""
+    from phonectl.commands.info import check
+    import click
+    ctx = click.Context(check)
+    ctx.ensure_object(dict)
+    with ctx:
+        check.invoke(ctx, build_id=None)
+
+
+def _handle_recommend(dm: DeviceManager) -> None:
+    """Show GSI recommendations for the connected device."""
+    from phonectl.commands.info import recommend
+    import click
+    ctx = click.Context(recommend)
+    ctx.ensure_object(dict)
+    with ctx:
+        recommend.invoke(ctx)
+
+
 def _handle_firmware() -> None:
-    show_gsi_versions()
+    console.print("\n[bold]Firmware Options:[/]")
+    console.print("  [1] List GSI versions")
+    console.print("  [2] List firmware regions (Motorola)")
+    choice = Prompt.ask("Choice", default="1")
+    if choice == "1":
+        show_gsi_versions()
+    elif choice == "2":
+        _handle_regions()
 
 
 def _handle_regions() -> None:
@@ -399,9 +421,15 @@ def _handle_storage(dm: DeviceManager) -> None:
         for a in results["actions"]:
             console.print(f"  {a}")
     elif choice == "3":
-        analyzer.show_bloatware(info.manufacturer.lower())
+        vendor = dm.resolve_vendor(info)
+        bloat_key = vendor.bloatware_key if vendor else info.manufacturer.lower()
+        analyzer.show_bloatware(bloat_key)
     elif choice == "4":
-        analyzer.disable_bloatware(info.manufacturer.lower())
+        guard = SafetyGuard()
+        if guard.confirm_destructive("Disable bloatware apps? They can be re-enabled later."):
+            vendor = dm.resolve_vendor(info)
+            bloat_key = vendor.bloatware_key if vendor else info.manufacturer.lower()
+            analyzer.disable_bloatware(bloat_key)
     elif choice == "5":
         analyzer.enable_disabled()
     elif choice == "6":
@@ -472,6 +500,9 @@ def run_tui() -> None:
         "7": lambda: _handle_storage(dm),
         "8": lambda: _handle_flash_gsi(dm),
         "9": lambda: _handle_backup_menu(dm),
+        "k": lambda: _handle_check(dm),
+        "m": lambda: _handle_recommend(dm),
+        "u": lambda: _handle_update(dm),
         "r": lambda: _handle_reset_menu(dm),
         "c": lambda: _handle_recover(dm),
         "f": _handle_firmware,

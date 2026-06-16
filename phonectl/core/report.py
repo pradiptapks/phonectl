@@ -100,9 +100,13 @@ class ReportGenerator:
         # Storage
         try:
             from phonectl.core.storage import StorageAnalyzer
+            from phonectl.vendors.registry import create_device_manager
             analyzer = StorageAnalyzer(adb)
+            _dm = create_device_manager()
+            _vendor = _dm.resolve_vendor(info)
+            bloat_key = _vendor.bloatware_key if _vendor else info.manufacturer.lower()
+            bloatware = analyzer.list_bloatware(bloat_key)
             si = analyzer.get_storage_info()
-            bloatware = analyzer.list_bloatware(info.manufacturer.lower())
             report.storage_health = (
                 f"{si.used_gb} GB used of {si.total_gb} GB "
                 f"({si.free_gb} GB free). "

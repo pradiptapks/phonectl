@@ -18,6 +18,10 @@ class GooglePixelPlugin(BaseVendorPlugin):
         return "Google Pixel"
 
     @property
+    def bloatware_key(self) -> str:
+        return "google"
+
+    @property
     def usb_vendor_ids(self) -> list[str]:
         return ["18d1"]
 

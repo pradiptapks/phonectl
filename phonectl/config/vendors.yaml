@@ -1,4 +1,10 @@
 # Vendor detection rules and device-specific configuration.
+#
+# REFERENCE DOCUMENT: This file documents vendor-specific data for all
+# supported and planned vendors. Runtime behaviour is driven by the Python
+# plugins in phonectl/vendors/*.py. Adding a vendor here alone does NOT
+# enable detection or flash — a matching plugin class is required.
+#
 # phonectl auto-detects the vendor using USB IDs and Android properties,
 # then routes to the matching vendor plugin.
 
@@ -56,6 +62,17 @@ vendors:
       ro.product.manufacturer: ["OnePlus"]
     boot_partitions: [boot, dtbo, vbmeta]
     fastbootd_quirks:
+      sparse_limit: "256M"
+
+  nokia:
+    display_name: Nokia (HMD Global)
+    usb_vendor_ids: ["2e04"]
+    detect_properties:
+      ro.product.manufacturer: ["Nokia", "HMD Global"]
+    firmware_mirror: "https://nokia-updates.com"
+    boot_partitions: [boot, dtbo, vbmeta]
+    fastbootd_quirks:
+      use_fastbootd: false
       sparse_limit: "256M"
 
   xiaomi:

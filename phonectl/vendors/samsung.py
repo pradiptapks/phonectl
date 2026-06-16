@@ -22,6 +22,10 @@ class SamsungPlugin(BaseVendorPlugin):
         return "Samsung"
 
     @property
+    def bloatware_key(self) -> str:
+        return "samsung"
+
+    @property
     def usb_vendor_ids(self) -> list[str]:
         return ["04e8"]
 

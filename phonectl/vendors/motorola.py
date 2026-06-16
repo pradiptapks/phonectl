@@ -42,6 +42,14 @@ class MotorolaPlugin(BaseVendorPlugin):
         return "Motorola"
 
     @property
+    def supports_flash(self) -> bool:
+        return True
+
+    @property
+    def bloatware_key(self) -> str:
+        return "motorola"
+
+    @property
     def usb_vendor_ids(self) -> list[str]:
         return ["22b8"]
 

@@ -111,7 +111,7 @@ class SecurityGuard:
         except Exception:
             vpn_active = False
         checks.append(SecurityCheck(
-            name="VPN active", category="Network", passed=True,
+            name="VPN active", category="Network", passed=vpn_active,
             score_weight=3,
             detail="VPN connection active" if vpn_active else "No VPN — traffic is unencrypted on public WiFi",
         ))

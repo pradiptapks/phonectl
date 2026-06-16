@@ -26,7 +26,7 @@ A Python CLI/TUI tool that automates Android phone lifecycle management — flas
 - **Storage Management** — 3-tier cleanup, usage-based bloatware scoring for 6 vendors with SafetyGuard
 - **Factory Reset** — safe reset flows with double confirmation, FRP warnings
 - **Backup & Recovery** — boot partition backup/restore, emergency recovery from boot loops
-- **Vendor Plugins** — Motorola (full), Google Pixel and Samsung (stubs), extensible for others
+- **Vendor Plugins** — Motorola (full), Nokia/HMD Global (full), Google Pixel and Samsung (detection only), extensible for others
 - **Gemini 3.1 AI** — AI-powered diagnostics (`diagnose --ai`) and troubleshooting (`ask`) via Gemini 3.1 Pro/Flash
 - **AI Plugin System** — extensible provider interface for Ollama, Claude/MCP, and community data (future)
 
@@ -102,7 +102,8 @@ For the full command reference with all flags and options, see [docs/CLI_REFEREN
 | Vendor | Status | Notes |
 |--------|--------|-------|
 | Motorola | Full support | Flash, backup, recover, firmware download |
-| Google Pixel | Detection only | Contributions welcome |
+| Nokia (HMD Global) | Full support | Flash, update, bootloader fastboot mode |
+| Google Pixel | Detection only | Flash not yet implemented, contributions welcome |
 | Samsung | Detection only | Uses Odin/Heimdall, not fastboot |
 | OnePlus, Xiaomi | Config only | Detection rules defined, plugins not yet implemented |
 
@@ -138,7 +139,7 @@ Safety is built in at every level — flash state persistence, smart vbmeta sele
 
 ## Contributing
 
-1. **New vendor plugin:** Create `vendors/yourvendor.py` implementing `BaseVendorPlugin`, register in `cli.py`
+1. **New vendor plugin:** Create `vendors/yourvendor.py` implementing `BaseVendorPlugin`, register in `vendors/registry.py`
 2. **New GSI versions:** Edit `config/gsi_versions.yaml` with download URL, checksum, VNDK compatibility
 3. **New bloatware entries:** Edit `config/bloatware.yaml` per vendor
 4. **New stalkerware signatures:** Edit `config/stalkerware.yaml`

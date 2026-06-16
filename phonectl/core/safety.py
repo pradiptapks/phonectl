@@ -130,21 +130,78 @@ class SafetyGuard:
             "detail": compat_detail,
         })
 
-        # ── 3. Project Treble ──
+        # ── 3. VNDK namespace isolation (Google Flash Tool gate) ──
+        vndk_lite = getattr(info, 'vndk_lite', False)
+        if vndk_lite and gsi_build_id:
+            prefix = gsi_build_id[:4]
+            gsi_req = GSI_ANDROID_REQUIREMENTS.get(prefix, {})
+            gsi_android = gsi_req.get("min_android", 0)
+            device_android = int(info.android_version) if info.android_version and info.android_version.isdigit() else 0
+            if gsi_android and device_android and gsi_android != device_android:
+                checks.append({
+                    "name": "VNDK namespace isolation",
+                    "passed": False,
+                    "detail": (
+                        f"VNDKLite device (non-isolated vendor namespace) — "
+                        f"cannot cross-version flash "
+                        f"(device: Android {device_android}, GSI targets Android {gsi_android})"
+                    ),
+                })
+            else:
+                checks.append({
+                    "name": "VNDK namespace isolation",
+                    "passed": True,
+                    "detail": "VNDKLite device — same Android version, cross-version restriction OK",
+                })
+        else:
+            checks.append({
+                "name": "VNDK namespace isolation",
+                "passed": True,
+                "detail": "Full VNDK isolation — cross-version GSI supported",
+            })
+
+        # ── 4. Project Treble ──
         checks.append({
             "name": "Project Treble",
             "passed": info.treble_enabled,
             "detail": "Enabled" if info.treble_enabled else "DISABLED — GSI requires Treble",
         })
 
-        # ── 4. Dynamic partitions ──
+        # ── 5. Dynamic partitions ──
         checks.append({
             "name": "Dynamic partitions",
             "passed": info.dynamic_partitions,
             "detail": "Supported" if info.dynamic_partitions else "Not supported — may need legacy flash method",
         })
 
-        # ── 5. Architecture ──
+        # ── 6. AVB verified boot ──
+        avb_state = info.verified_boot_state
+        if avb_state == "green":
+            avb_passed = False
+            avb_detail = (
+                "Verified boot is GREEN (locked/verified) — "
+                "GSI requires AVB disabled; vbmeta with "
+                "--disable-verity --disable-verification will be flashed automatically"
+            )
+        elif avb_state == "orange":
+            avb_passed = True
+            avb_detail = "Verified boot ORANGE (unlocked) — AVB can be disabled"
+        elif avb_state == "yellow":
+            avb_passed = True
+            avb_detail = "Verified boot YELLOW (custom key) — GSI flash will override with disabled vbmeta"
+        elif avb_state:
+            avb_passed = True
+            avb_detail = f"Verified boot state: {avb_state}"
+        else:
+            avb_passed = True
+            avb_detail = "Not verified"
+        checks.append({
+            "name": "AVB verified boot",
+            "passed": avb_passed,
+            "detail": avb_detail,
+        })
+
+        # ── 7. Architecture ──
         arch_ok = "arm64" in info.cpu_abi.lower() if info.cpu_abi else False
         checks.append({
             "name": "Architecture",
@@ -369,7 +426,10 @@ class SafetyGuard:
                 capture_output=True, text=True, timeout=5,
             )
             output = result.stdout.lower()
-            usb_keywords = ["motorola", "google", "samsung", "22b8", "18d1", "04e8"]
+            usb_keywords = [
+                "motorola", "google", "samsung", "nokia", "hmd",
+                "22b8", "18d1", "04e8", "2e04", "2a70", "2717",
+            ]
             return any(kw in output for kw in usb_keywords)
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False

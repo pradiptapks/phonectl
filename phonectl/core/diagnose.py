@@ -130,8 +130,12 @@ class DiagnosticEngine:
 
         try:
             from phonectl.core.storage import StorageAnalyzer
+            from phonectl.vendors.registry import create_device_manager
             analyzer = StorageAnalyzer(adb)
-            bloat = analyzer.list_bloatware(info.manufacturer.lower())
+            _dm = create_device_manager()
+            _vendor = _dm.resolve_vendor(info)
+            bloat_key = _vendor.bloatware_key if _vendor else info.manufacturer.lower()
+            bloat = analyzer.list_bloatware(bloat_key)
             evidence["bloatware_count"] = len(bloat)
         except Exception:
             evidence["bloatware_count"] = 0

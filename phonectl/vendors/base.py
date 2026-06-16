@@ -83,6 +83,22 @@ class BaseVendorPlugin(ABC):
     def get_usb_quirks(self) -> dict:
         """Return known USB/fastboot quirks for this vendor."""
 
+    @property
+    def supports_flash(self) -> bool:
+        """Whether this plugin has a working flash implementation.
+
+        Override to return True in vendors with implemented get_flash_sequence.
+        """
+        return False
+
+    @property
+    def bloatware_key(self) -> str:
+        """Key used to look up this vendor's bloatware in bloatware.yaml.
+
+        Override if the YAML key differs from the lowercase vendor name.
+        """
+        return self.name.lower()
+
     def get_recovery_sequence(self, info: DeviceInfo, boot_imgs: dict[str, str], system_img: str) -> list[FlashStep]:
         """Return steps to recover from a boot loop using stock boot images + GSI system.
 
